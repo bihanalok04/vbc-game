@@ -121,8 +121,8 @@ button:disabled { opacity: .5; cursor: wait; }
 
 /* In-game buttons */
 .round-btn { position: fixed; left: 12px; top: 46%; z-index: 8; width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(0,0,0,.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
-#recenter-btn { position: fixed; left: 50%; top: 128px; transform: translateX(-50%); z-index: 8; padding: 10px 16px; border-radius: 999px; border: 2px solid #fff; background: #2a9d8f; color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.5); animation: pop .25s ease-out; }
-@keyframes pop { from { transform: translateX(-50%) scale(.6); opacity: 0; } }
+#recenter-btn { position: fixed; left: 12px; top: calc(46% + 58px); z-index: 8; padding: 8px 12px; border-radius: 999px; border: 2px solid #fff; background: rgba(42,157,143,.85); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.45); animation: pop .25s ease-out; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
 
 /* Settings */
 #settings { z-index: 30; }
