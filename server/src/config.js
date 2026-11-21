@@ -36,8 +36,8 @@ module.exports = {
 
   // Movement limits, used to reject obviously impossible movement.
   // Keep these in sync with the frontend's movement code (Member 2).
-  WALK_SPEED: 8,
-  SPRINT_SPEED: 14,
+  WALK_SPEED: 9,
+  SPRINT_SPEED: 16,
   SPEED_TOLERANCE: 1.6, // allow some slack for lag and frame-rate jitter
   WORLD_HALF_SIZE: 160, // the city spans -160..160 on X and Z
 

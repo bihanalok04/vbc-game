@@ -5,5 +5,5 @@
 export const SERVER_URL = '';
 
 export const WORLD_HALF_SIZE = 160; // city spans -160..160 on X and Z
-export const WALK_SPEED = 8;
-export const SPRINT_SPEED = 14;
+export const WALK_SPEED = 9;
+export const SPRINT_SPEED = 16;

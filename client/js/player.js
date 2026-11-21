@@ -57,7 +57,7 @@ export function createPlayer(scene, camera, world, domElement) {
   window.addEventListener('pointercancel', (e) => { if (e.pointerId === dragId) dragId = null; });
   window.addEventListener('pointermove', (e) => {
     if (e.pointerId !== dragId) return;
-    camYaw -= (e.clientX - lastX) * 0.006;
+    camYaw -= (e.clientX - lastX) * 0.0042; // look sensitivity (30% lower than before)
     lastX = e.clientX;
   });
 
@@ -72,13 +72,15 @@ export function createPlayer(scene, camera, world, domElement) {
   let vy = 0; // vertical speed for jumping
   let height = 0; // how high off the ground
   let autoCamera = false; // phones: camera swings round to follow the joystick direction
-  const JUMP_SPEED = 7;
-  const GRAVITY = 20;
+  const JUMP_SPEED = 8.5;
+  const GRAVITY = 22;
 
   function blocked(x, z) {
     for (const c of world.colliders) {
       if (x > c.minX - RADIUS && x < c.maxX + RADIUS && z > c.minZ - RADIUS && z < c.maxZ + RADIUS) return true;
     }
+    // moving things such as the Puja crowd (you can jump over them)
+    if (height < 1.2 && world.blockedByCrowd?.(x, z, RADIUS, object.position.x, object.position.z)) return true;
     return false;
   }
 
