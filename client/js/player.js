@@ -16,7 +16,7 @@ import { WALK_SPEED, SPRINT_SPEED, WORLD_HALF_SIZE } from './config.js';
 
 const RADIUS = 0.6;
 const STAMINA_DRAIN = 0.25; // per second while sprinting (4 s of full sprint)
-const STAMINA_REGEN = 0.15; // per second while not sprinting
+const STAMINA_REGEN = 0.1125; // per second while not sprinting (25% slower than 0.15)
 const STAMINA_MIN_RESTART = 0.2; // once empty, need this much before sprinting again
 const CAM_DISTANCE = 9;
 const CAM_HEIGHT = 4.5;
