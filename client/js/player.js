@@ -1,4 +1,5 @@
 // OWNER: Bihan (movement, third-person camera, sprint, stamina, controls).
+// Phone joystick lives in touch.js (it presses the same W/A/S/D/Shift keys).
 //
 // createPlayer(scene, camera, world, domElement)
 // returns {
@@ -34,64 +35,6 @@ export function makeAvatar(color = 0xffcc33) {
   return g;
 }
 
-// ---------- touch controls (joystick + sprint button) ----------
-function createTouchControls() {
-  const root = document.createElement('div');
-  root.id = 'touch';
-  root.innerHTML = `
-    <div id="joy"><div id="joy-knob"></div></div>
-    <button id="sprint-btn" type="button">SPRINT</button>`;
-  document.body.appendChild(root);
-  const joy = root.querySelector('#joy');
-  const knob = root.querySelector('#joy-knob');
-  const sprintBtn = root.querySelector('#sprint-btn');
-
-  const state = { x: 0, y: 0, sprint: false };
-  let joyId = null;
-  const MAX = 45;
-
-  function setKnob(dx, dy) {
-    knob.style.transform = `translate(${dx}px, ${dy}px)`;
-  }
-  function onMove(e) {
-    const r = joy.getBoundingClientRect();
-    let dx = e.clientX - (r.left + r.width / 2);
-    let dy = e.clientY - (r.top + r.height / 2);
-    const len = Math.hypot(dx, dy);
-    if (len > MAX) { dx = (dx / len) * MAX; dy = (dy / len) * MAX; }
-    setKnob(dx, dy);
-    state.x = dx / MAX;
-    state.y = -dy / MAX;
-  }
-  joy.addEventListener('pointerdown', (e) => {
-    joyId = e.pointerId;
-    joy.setPointerCapture(e.pointerId);
-    onMove(e);
-  });
-  joy.addEventListener('pointermove', (e) => { if (e.pointerId === joyId) onMove(e); });
-  const release = (e) => {
-    if (e.pointerId !== joyId) return;
-    joyId = null;
-    state.x = 0; state.y = 0;
-    setKnob(0, 0);
-  };
-  joy.addEventListener('pointerup', release);
-  joy.addEventListener('pointercancel', release);
-
-  sprintBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); state.sprint = true; sprintBtn.classList.add('on'); });
-  const stopSprint = () => { state.sprint = false; sprintBtn.classList.remove('on'); };
-  sprintBtn.addEventListener('pointerup', stopSprint);
-  sprintBtn.addEventListener('pointercancel', stopSprint);
-  sprintBtn.addEventListener('pointerleave', stopSprint);
-
-  // Show only on touch devices (or after the first touch).
-  const show = () => document.body.classList.add('is-touch');
-  if (window.matchMedia('(pointer: coarse)').matches) show();
-  window.addEventListener('touchstart', show, { once: true, passive: true });
-
-  return state;
-}
-
 export function createPlayer(scene, camera, world, domElement) {
   const object = makeAvatar();
   scene.add(object);
@@ -104,7 +47,6 @@ export function createPlayer(scene, camera, world, domElement) {
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
 
-  const touch = createTouchControls();
 
   // Camera yaw: drag on the game canvas (mouse or one finger) to look around.
   let camYaw = Math.PI; // camera sits behind the player (player faces +Z)
@@ -144,13 +86,11 @@ export function createPlayer(scene, camera, world, domElement) {
       if (keys.has('KeyS') || keys.has('ArrowDown')) fz -= 1;
       if (keys.has('KeyA') || keys.has('ArrowLeft')) fx -= 1;
       if (keys.has('KeyD') || keys.has('ArrowRight')) fx += 1;
-      fx += touch.x;
-      fz += touch.y;
     }
     let mag = Math.hypot(fx, fz);
     const moving = mag > 0.15;
 
-    const wantSprint = keys.has('ShiftLeft') || keys.has('ShiftRight') || touch.sprint;
+    const wantSprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
     if (stamina <= 0) exhausted = true;
     if (exhausted && stamina >= STAMINA_MIN_RESTART) exhausted = false;
     sprinting = moving && wantSprint && !exhausted;
@@ -159,7 +99,7 @@ export function createPlayer(scene, camera, world, domElement) {
       : Math.min(1, stamina + STAMINA_REGEN * dt);
 
     if (moving) {
-      // Keyboard diagonals and full joystick push both give speed 1; light joystick push walks slower.
+      // Normalise so diagonals are not faster.
       const strength = Math.min(1, mag);
       fx /= mag; fz /= mag;
       // forward f = (-sin, -cos), right r = (cos, -sin)
