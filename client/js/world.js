@@ -24,17 +24,19 @@ const ROAD_WIDTH = 10;
 const CITY_SEED = 1757; // change to get a different (but still shared) city layout
 const RIVER_EDGE = -WORLD_HALF_SIZE + 14; // the Hooghly runs along the west edge
 
-// North-Kolkata wall colours: faded yellow, ochre, pink, sky blue, white, brick, green shutters
-const BUILDING_COLORS = [0xe9d8a6, 0xd4a373, 0xe5989b, 0xa8dadc, 0xf1faee, 0xb5654a, 0xcdb4db, 0xf4d58d, 0x9fbfa0];
+// North-Kolkata wall colours: weathered orange, terracotta, ochre, lime-wash yellow,
+// faded pink and green, old off-white (from the reference photos of Kolkata lanes)
+const BUILDING_COLORS = [0xe8a25c, 0xd9894a, 0xe9c46a, 0xf0d58a, 0xc97b5a, 0xe5b3a3, 0xa9c2a0, 0xd8d0c0, 0xb5654a, 0xf2b880];
 // Pandal colour themes: [main, trim]
 const PANDAL_THEMES = [
   [0xc1121f, 0xffd166], [0x6a040f, 0xf4a261], [0x3a0ca3, 0xffd166],
   [0x9d0208, 0xffffff], [0x1d3557, 0xffb703], [0x7b2cbf, 0xf72585],
 ];
 
-const DAY_SKY = new THREE.Color(0x87a8d0);
-const DUSK_SKY = new THREE.Color(0xe9845f);
-const NIGHT_SKY = new THREE.Color(0x0b1026);
+// Warm, hazy golden-hour palette
+const DAY_SKY = new THREE.Color(0xa9c8e4);
+const DUSK_SKY = new THREE.Color(0xe9a07a);
+const NIGHT_SKY = new THREE.Color(0x101433);
 
 // Small seeded random generator (same numbers on every device).
 function seededRandom(seed) {
@@ -74,6 +76,22 @@ function buildingTextures(rand) {
   const wall = makeCanvasTexture(128, 192, (g, w, h) => {
     g.fillStyle = '#ffffff';
     g.fillRect(0, 0, w, h);
+    // weathering: damp stains and peeling patches like old Kolkata walls
+    for (let i = 0; i < 14; i++) {
+      const x = rand() * w;
+      const y = rand() * h;
+      const r = 6 + rand() * 22;
+      const grad = g.createRadialGradient(x, y, 1, x, y, r);
+      grad.addColorStop(0, `rgba(60,45,30,${0.12 + rand() * 0.15})`);
+      grad.addColorStop(1, 'rgba(60,45,30,0)');
+      g.fillStyle = grad;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    for (let i = 0; i < 6; i++) {
+      // streaks running down from the top
+      g.fillStyle = 'rgba(50,40,30,0.08)';
+      g.fillRect(rand() * w, 0, 2 + rand() * 4, h * (0.3 + rand() * 0.6));
+    }
     for (let r = 0; r < rows; r++) {
       g.fillStyle = 'rgba(0,0,0,0.08)'; // floor line
       g.fillRect(0, r * (h / rows), w, 3);
@@ -199,7 +217,7 @@ export function buildWorld(scene, data = {}) {
   });
   glowMaterials.push([buildingMat, 0, 1.1]);
   const buildings = [];
-  const CELL = 13;
+  const CELL = 11; // denser blocks, narrower lanes
   for (let gx = -WORLD_HALF_SIZE + CELL / 2; gx < WORLD_HALF_SIZE; gx += CELL) {
     for (let gz = -WORLD_HALF_SIZE + CELL / 2; gz < WORLD_HALF_SIZE; gz += CELL) {
       const w = 7 + rand() * 4;
@@ -214,7 +232,7 @@ export function buildWorld(scene, data = {}) {
       if (nearPandal(x, z, 20 + half, 7 + half)) continue; // regular pandals get an open ground; ghetto ones hide in lanes
       if (crowdZones.some((c) => Math.hypot(c.x - x, c.z - z) < c.radius * 0.5 + half)) continue;
       if (Math.hypot(x, z) < 14 + half) continue; // spawn square
-      if (rand() < 0.12) continue; // the odd empty plot / gali
+      if (rand() < 0.05) continue; // the odd empty plot / gali
       buildings.push({ x, z, w, d, h, color: BUILDING_COLORS[Math.floor(rand() * BUILDING_COLORS.length)] });
     }
   }
@@ -237,6 +255,74 @@ export function buildWorld(scene, data = {}) {
   buildingMesh.count = buildings.length;
   roofMesh.count = buildings.length;
   scene.add(buildingMesh, roofMesh);
+
+  // ---------- balconies with green railings, facing the street ----------
+  const balconies = [];
+  for (const b of buildings) {
+    if (b.h < 9 || rand() < 0.3) continue;
+    let best = null;
+    for (const r of roads) {
+      const d = distToSegment(b.x, b.z, r);
+      if (!best || d < best.d) best = { d, r };
+    }
+    if (!best) continue;
+    const vertical = Math.abs(best.r.x2 - best.r.x1) < Math.abs(best.r.z2 - best.r.z1);
+    const sx = vertical ? Math.sign(best.r.x1 - b.x) || 1 : 0;
+    const sz = vertical ? 0 : Math.sign(best.r.z1 - b.z) || 1;
+    for (let floor = 1; floor * 4 + 1 < b.h - 1; floor++) {
+      if (rand() < 0.35) continue;
+      const y = floor * 4 + 0.6;
+      const len = (vertical ? b.d : b.w) * (0.5 + rand() * 0.3);
+      balconies.push({ x: b.x + sx * (b.w / 2 + 0.55), z: b.z + sz * (b.d / 2 + 0.55), y, len, vertical });
+    }
+  }
+  const slabMat = new THREE.MeshStandardMaterial({ color: 0x9c5b3a, roughness: 0.9 });
+  const railMat2 = new THREE.MeshStandardMaterial({ color: 0x2f6b4f, roughness: 0.7 });
+  const slabMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), slabMat, Math.max(1, balconies.length * 2));
+  const railMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), railMat2, Math.max(1, balconies.length));
+  const sc = new THREE.Vector3();
+  balconies.forEach((bl, i) => {
+    sc.set(bl.vertical ? 1.1 : bl.len, 0.2, bl.vertical ? bl.len : 1.1);
+    m.compose(v.set(bl.x, bl.y, bl.z), q.identity(), sc);
+    slabMesh.setMatrixAt(i * 2, m);
+    // sunshade (chhajja) above the balcony
+    m.compose(v.set(bl.x, bl.y + 3.0, bl.z), q.identity(), sc);
+    slabMesh.setMatrixAt(i * 2 + 1, m);
+    const ox = bl.vertical ? Math.sign(bl.x) * 0 : 0;
+    sc.set(bl.vertical ? 0.08 : bl.len, 0.9, bl.vertical ? bl.len : 0.08);
+    const px = bl.x + (bl.vertical ? (bl.x > 0 ? 0.5 : -0.5) : 0) * 0 + ox;
+    m.compose(v.set(px, bl.y + 0.55, bl.z), q.identity(), sc);
+    railMesh.setMatrixAt(i, m);
+  });
+  slabMesh.count = balconies.length * 2;
+  railMesh.count = balconies.length;
+  scene.add(slabMesh, railMesh);
+
+  // ---------- overhead electric/cable wires sagging across the lanes ----------
+  const wirePts = [];
+  for (let i = 0; i < buildings.length && wirePts.length < 3000; i++) {
+    const a = buildings[i];
+    for (let j = i + 1; j < buildings.length; j++) {
+      const b = buildings[j];
+      const d = Math.hypot(a.x - b.x, a.z - b.z);
+      if (d < 9 || d > 20 || rand() > 0.18) continue;
+      const ya = Math.min(a.h, 10) - 1;
+      const yb = Math.min(b.h, 10) - 1;
+      const sag = 0.8 + rand() * 1.2;
+      let prev = null;
+      for (let s = 0; s <= 6; s++) {
+        const t = s / 6;
+        const p = new THREE.Vector3(a.x + (b.x - a.x) * t, ya + (yb - ya) * t - Math.sin(t * Math.PI) * sag, a.z + (b.z - a.z) * t);
+        if (prev) wirePts.push(prev, p);
+        prev = p;
+      }
+    }
+  }
+  const wires = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(wirePts),
+    new THREE.LineBasicMaterial({ color: 0x2a2420, transparent: true, opacity: 0.75 })
+  );
+  scene.add(wires);
 
   // ---------- street lamps ----------
   const lamps = [];
@@ -316,6 +402,70 @@ export function buildWorld(scene, data = {}) {
   });
   taxiBody.count = taxiTop.count = taxiWheels.count = taxis.length;
   scene.add(taxiBody, taxiTop, taxiWheels);
+
+  // ---------- motorbikes parked on the footpaths ----------
+  const bikes = [];
+  for (let tries = 0; tries < 500 && bikes.length < 40; tries++) {
+    const r = roads[Math.floor(rand() * roads.length)];
+    if (!r) break;
+    const t = 0.03 + rand() * 0.94;
+    const vertical = Math.abs(r.x2 - r.x1) < Math.abs(r.z2 - r.z1);
+    const side = rand() < 0.5 ? -1 : 1;
+    const off = ROAD_WIDTH / 2 + 1.0;
+    const x = r.x1 + (r.x2 - r.x1) * t + (vertical ? side * off : 0);
+    const z = r.z1 + (r.z2 - r.z1) * t + (vertical ? 0 : side * off);
+    if (x < RIVER_EDGE + 3 || Math.hypot(x, z) < 14 || nearPandal(x, z, 12, 5)) continue;
+    if (colliders.some((c) => x > c.minX - 1 && x < c.maxX + 1 && z > c.minZ - 1 && z < c.maxZ + 1)) continue;
+    bikes.push({ x, z, vertical: !vertical, color: [0x111111, 0x7a0d0d, 0x1d3557, 0x333333][Math.floor(rand() * 4)] });
+  }
+  const bikeBody = new THREE.InstancedMesh(new THREE.BoxGeometry(0.45, 0.55, 1.7), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.4, roughness: 0.5 }), Math.max(1, bikes.length));
+  const bikeWheels = new THREE.InstancedMesh(new THREE.BoxGeometry(0.15, 0.6, 1.9), new THREE.MeshStandardMaterial({ color: 0x111111 }), Math.max(1, bikes.length));
+  bikes.forEach((bk, i) => {
+    q.setFromEuler(e.set(0, bk.vertical ? 0 : Math.PI / 2, 0.08));
+    m.compose(v.set(bk.x, 0.75, bk.z), q, one);
+    bikeBody.setMatrixAt(i, m);
+    bikeBody.setColorAt(i, c.setHex(bk.color));
+    m.compose(v.set(bk.x, 0.3, bk.z), q, one);
+    bikeWheels.setMatrixAt(i, m);
+    const hx = bk.vertical ? 0.4 : 1;
+    const hz = bk.vertical ? 1 : 0.4;
+    colliders.push({ minX: bk.x - hx, maxX: bk.x + hx, minZ: bk.z - hz, maxZ: bk.z + hz });
+  });
+  bikeBody.count = bikeWheels.count = bikes.length;
+  scene.add(bikeBody, bikeWheels);
+
+  // ---------- coconut palms (along the ghat and in open grounds) ----------
+  const palms = [];
+  for (let z = -WORLD_HALF_SIZE + 12; z < WORLD_HALF_SIZE - 6; z += 16 + rand() * 10) {
+    palms.push({ x: RIVER_EDGE + 4 + rand() * 2, z, h: 8 + rand() * 4, lean: (rand() - 0.5) * 0.3 });
+  }
+  for (let tries = 0; tries < 300 && palms.length < 45; tries++) {
+    const x = (rand() * 2 - 1) * (WORLD_HALF_SIZE - 6);
+    const z = (rand() * 2 - 1) * (WORLD_HALF_SIZE - 6);
+    if (x < RIVER_EDGE + 6 || nearRoad(x, z, 3) || nearPandal(x, z, 12, 5) || Math.hypot(x, z) < 8) continue;
+    if (colliders.some((b) => x > b.minX - 2 && x < b.maxX + 2 && z > b.minZ - 2 && z < b.maxZ + 2)) continue;
+    palms.push({ x, z, h: 8 + rand() * 5, lean: (rand() - 0.5) * 0.3 });
+  }
+  const palmTrunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 1, 7), new THREE.MeshStandardMaterial({ color: 0x7a6248, roughness: 1 }), Math.max(1, palms.length));
+  const frondGeo = new THREE.ConeGeometry(0.5, 4.2, 4);
+  frondGeo.translate(0, 2.1, 0); // pivot at the base of the frond
+  const palmLeaves = new THREE.InstancedMesh(frondGeo, new THREE.MeshStandardMaterial({ color: 0x3f7a35, flatShading: true }), Math.max(1, palms.length * 7));
+  palms.forEach((p, i) => {
+    q.setFromEuler(e.set(p.lean, 0, p.lean * 0.5));
+    m.compose(v.set(p.x, p.h / 2, p.z), q, new THREE.Vector3(1, p.h, 1));
+    palmTrunk.setMatrixAt(i, m);
+    const topX = p.x + Math.sin(p.lean * 0.5) * -p.h * 0.5;
+    const topZ = p.z + Math.sin(p.lean) * p.h * 0.5;
+    for (let k = 0; k < 7; k++) {
+      q.setFromEuler(e.set(1.9, (k / 7) * Math.PI * 2, 0, 'YXZ'));
+      m.compose(v.set(topX, p.h, topZ), q, one);
+      palmLeaves.setMatrixAt(i * 7 + k, m);
+    }
+    colliders.push({ minX: p.x - 0.35, maxX: p.x + 0.35, minZ: p.z - 0.35, maxZ: p.z + 0.35 });
+  });
+  palmTrunk.count = palms.length;
+  palmLeaves.count = palms.length * 7;
+  scene.add(palmTrunk, palmLeaves);
 
   // ---------- trees (in open spaces around pandals and the spawn square) ----------
   const trees = [];
