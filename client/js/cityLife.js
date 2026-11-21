@@ -313,7 +313,231 @@ export function buildCharacter(look, i = 0) {
 
 // ---------------------------------------------------------------------------
 
-export function buildCityLife(scene, world) {
+// ---------------------------------------------------------------------------
+// Puja crowd: hundreds of simple people (one draw call per body part) in Bengali
+// festive clothes — red-and-white and bright sarees, panjabis, dhotis — packed
+// around pandals and busy crossings, gently swaying as if moving in a queue.
+// ---------------------------------------------------------------------------
+const SAREES = [0xc1121f, 0xffffff, 0xf77f00, 0xd00070, 0xffbe0b, 0x7b2cbf, 0x2a9d8f, 0xe63946, 0xf4a261];
+const PANJABIS = [0xfdfdf8, 0xffd166, 0x3a86ff, 0xef476f, 0x06d6a0, 0xf8f1e5, 0x9b5de5, 0xff9f1c];
+const LOWERS = [0xfffdf5, 0x1d3557, 0x2b2d42, 0xf1faee, 0x6c757d];
+
+function seeded(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+function buildCrowd(scene, world, data) {
+  const rand = seeded(2025);
+  const spots = [];
+  const free = (x, z) => !world.colliders.some((c) => x > c.minX - 0.5 && x < c.maxX + 0.5 && z > c.minZ - 0.5 && z < c.maxZ + 0.5);
+  // A ring of people in front of / around each pandal (more at big ones), plus the crowd zones
+  for (const p of data.pandals || []) {
+    const n = p.type === 'ghetto' ? 10 : 34;
+    const entry = world.pandals?.get(p.id)?.group;
+    const face = entry ? entry.rotation.y : 0;
+    for (let i = 0; i < n; i++) {
+      // mostly in front of the entrance, queueing toward it
+      const a = face + (rand() - 0.5) * (p.type === 'ghetto' ? 2.2 : 2.6);
+      const r = (p.type === 'ghetto' ? 5 : 15) + rand() * (p.type === 'ghetto' ? 4 : 12);
+      spots.push([p.x + Math.sin(a) * r, p.z + Math.cos(a) * r]);
+    }
+  }
+  for (const c of data.crowdZones || []) {
+    const n = c.intensity === 'jhamela' ? 40 : 18;
+    for (let i = 0; i < n; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = Math.sqrt(rand()) * c.radius * 0.9;
+      spots.push([c.x + Math.cos(a) * r, c.z + Math.sin(a) * r]);
+    }
+  }
+  const people = spots.filter(([x, z]) => free(x, z) && Math.hypot(x, z) > 6).map(([x, z]) => {
+    const woman = rand() < 0.5;
+    return {
+      x, z, woman,
+      rot: rand() * Math.PI * 2,
+      s: 0.85 + rand() * 0.25,
+      lower: woman ? SAREES[Math.floor(rand() * SAREES.length)] : LOWERS[Math.floor(rand() * LOWERS.length)],
+      upper: woman ? SAREES[Math.floor(rand() * SAREES.length)] : PANJABIS[Math.floor(rand() * PANJABIS.length)],
+      border: rand() < 0.5,
+      phase: rand() * 10,
+    };
+  });
+
+  const count = Math.max(1, people.length);
+  const lowerMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.3, 0.45, 1.0, 8), new THREE.MeshStandardMaterial({ roughness: 0.85 }), count);
+  const upperMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.26, 0.32, 0.75, 8), new THREE.MeshStandardMaterial({ roughness: 0.85 }), count);
+  const headMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshStandardMaterial({ color: 0x9a6338, roughness: 0.8 }), count);
+  const hairMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.23, 8, 6, 0, Math.PI * 2, 0, Math.PI / 1.8), new THREE.MeshStandardMaterial({ color: 0x15100c }), count);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const v = new THREE.Vector3();
+  const sc = new THREE.Vector3();
+  const col = new THREE.Color();
+  people.forEach((p, i) => {
+    lowerMesh.setColorAt(i, col.setHex(p.lower));
+    upperMesh.setColorAt(i, col.setHex(p.upper));
+  });
+
+  function place(t) {
+    people.forEach((p, i) => {
+      const sway = Math.sin(t * 1.6 + p.phase) * 0.04;
+      const bob = Math.abs(Math.sin(t * 2.2 + p.phase)) * 0.04;
+      q.setFromEuler(e.set(0, p.rot + sway * 3, sway));
+      sc.set(p.s, p.s, p.s);
+      m.compose(v.set(p.x, (0.5 + bob) * p.s, p.z), q, sc);
+      lowerMesh.setMatrixAt(i, m);
+      m.compose(v.set(p.x, (1.35 + bob) * p.s, p.z), q, sc);
+      upperMesh.setMatrixAt(i, m);
+      m.compose(v.set(p.x, (1.92 + bob) * p.s, p.z), q, sc);
+      headMesh.setMatrixAt(i, m);
+      m.compose(v.set(p.x, (1.97 + bob) * p.s, p.z), q, sc);
+      hairMesh.setMatrixAt(i, m);
+    });
+    for (const mesh of [lowerMesh, upperMesh, headMesh, hairMesh]) mesh.instanceMatrix.needsUpdate = true;
+  }
+  [lowerMesh, upperMesh, headMesh, hairMesh].forEach((mesh) => { mesh.count = people.length; scene.add(mesh); });
+  place(0);
+  return { count: people.length, update: place };
+}
+
+// ---------------------------------------------------------------------------
+// Bengali Puja touches: alpana floor art at pandal entrances, marigold garlands
+// strung across the roads, kash flowers along the river, and "Subho Sharodiya"
+// welcome arches on the main roads.
+// ---------------------------------------------------------------------------
+function alpanaTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const g = canvas.getContext('2d');
+  g.translate(128, 128);
+  g.strokeStyle = '#fffaf0';
+  g.fillStyle = '#fffaf0';
+  g.lineWidth = 5;
+  for (const r of [30, 60, 95, 120]) { g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); }
+  for (let i = 0; i < 12; i++) {
+    // lotus petals
+    g.save(); g.rotate((i / 12) * Math.PI * 2);
+    g.beginPath(); g.moveTo(0, -32); g.quadraticCurveTo(18, -60, 0, -92); g.quadraticCurveTo(-18, -60, 0, -32); g.stroke();
+    g.beginPath(); g.arc(0, -108, 7, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  g.fillStyle = '#c1121f';
+  g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.fill();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function archTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 96;
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#9d0208';
+  g.fillRect(0, 0, 512, 96);
+  g.strokeStyle = '#ffd166';
+  g.lineWidth = 6;
+  g.strokeRect(5, 5, 502, 86);
+  g.fillStyle = '#ffd166';
+  g.font = 'bold 40px system-ui, "Noto Sans Bengali", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('শুভ শারদীয়া · Subho Sharodiya', 256, 50, 490);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function buildBengaliTouches(scene, world, data) {
+  const rand = seeded(1971);
+  // Alpana in front of every pandal entrance
+  const alpanaMat = new THREE.MeshBasicMaterial({ map: alpanaTexture(), transparent: true, depthWrite: false, opacity: 0.9 });
+  for (const p of data.pandals || []) {
+    const entry = world.pandals?.get(p.id)?.group;
+    const face = entry ? entry.rotation.y : 0;
+    const dist = p.type === 'ghetto' ? 4.5 : 14;
+    const size = p.type === 'ghetto' ? 3.5 : 7;
+    const al = new THREE.Mesh(new THREE.PlaneGeometry(size, size), alpanaMat);
+    al.rotation.x = -Math.PI / 2;
+    al.position.set(p.x + Math.sin(face) * dist, 0.05, p.z + Math.cos(face) * dist);
+    scene.add(al);
+  }
+
+  // Marigold garlands (orange + yellow) strung across the roads near pandals
+  const pts = [];
+  const colors = [];
+  const c = new THREE.Color();
+  for (const r of data.roads || []) {
+    const len = Math.hypot(r.x2 - r.x1, r.z2 - r.z1);
+    const nx = -(r.z2 - r.z1) / len;
+    const nz = (r.x2 - r.x1) / len;
+    for (let d = 15; d < len; d += 18) {
+      const t = d / len;
+      const cx = r.x1 + (r.x2 - r.x1) * t;
+      const cz = r.z1 + (r.z2 - r.z1) * t;
+      const nearP = (data.pandals || []).some((p) => Math.hypot(p.x - cx, p.z - cz) < 45);
+      if (!nearP) continue;
+      for (let k = 0; k <= 40; k++) {
+        const s = k / 40 - 0.5;
+        const sag = (1 - (2 * s) ** 2) * 1.4;
+        pts.push(cx + nx * s * 12, 7.5 - sag, cz + nz * s * 12);
+        c.setHex(k % 3 === 0 ? 0xffb703 : 0xfb8500);
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+  }
+  const garlandGeo = new THREE.BufferGeometry();
+  garlandGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  garlandGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  scene.add(new THREE.Points(garlandGeo, new THREE.PointsMaterial({ size: 0.42, vertexColors: true })));
+
+  // Kash flowers (the white feathery grass of Sharad) along the riverbank
+  const kashCount = 140;
+  const kashGeo = new THREE.ConeGeometry(0.18, 1.6, 5);
+  kashGeo.translate(0, 0.8, 0);
+  const kash = new THREE.InstancedMesh(kashGeo, new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 1 }), kashCount);
+  const stemGeo = new THREE.CylinderGeometry(0.02, 0.03, 1.2, 4);
+  stemGeo.translate(0, 0.6, 0);
+  const stems = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x8a9a5b }), kashCount);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const v = new THREE.Vector3();
+  const one = new THREE.Vector3(1, 1, 1);
+  for (let i = 0; i < kashCount; i++) {
+    const x = -142 + rand() * 6;
+    const z = -150 + rand() * 300;
+    q.setFromEuler(e.set((rand() - 0.5) * 0.4, 0, (rand() - 0.5) * 0.4));
+    m.compose(v.set(x, 0, z), q, one);
+    stems.setMatrixAt(i, m);
+    m.compose(v.set(x, 1.1, z), q, one);
+    kash.setMatrixAt(i, m);
+  }
+  scene.add(kash, stems);
+
+  // "Subho Sharodiya" welcome arches over the main roads
+  const archTex = archTexture();
+  const archMat = new THREE.MeshBasicMaterial({ map: archTex, side: THREE.DoubleSide });
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffb703, emissiveIntensity: 0.3 });
+  for (const [x, z, along] of [[0, -30, 'z'], [0, 60, 'z'], [-30, 0, 'x'], [70, 0, 'x'], [90, -100, 'z'], [-110, 100, 'z']]) {
+    const g = new THREE.Group();
+    for (const s of [-1, 1]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 8, 8), poleMat);
+      pole.position.set(s * 5.6, 4, 0);
+      g.add(pole);
+    }
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 2.1), archMat);
+    banner.position.y = 8;
+    g.add(banner);
+    g.position.set(x, 0, z);
+    g.rotation.y = along === 'z' ? 0 : Math.PI / 2;
+    scene.add(g);
+  }
+}
+
+export function buildCityLife(scene, world, data = {}) {
   const blocked = (x, z, pad) =>
     world.colliders.some((c) => x > c.minX - pad && x < c.maxX + pad && z > c.minZ - pad && z < c.maxZ + pad);
 
@@ -330,6 +554,10 @@ export function buildCityLife(scene, world) {
     world.colliders.push({ minX: x - 1.1, maxX: x + 1.1, minZ: z - 1.1, maxZ: z + 1.1 });
     stalls.push({ id: `stall-${i}`, food, x, z, group });
   });
+
+  // Puja crowds and Bengali decorations
+  const crowd = buildCrowd(scene, world, data);
+  buildBengaliTouches(scene, world, data);
 
   // The characters are now playable (picked in the menu), so none wander the streets.
   const people = [].map((c, i) => {
@@ -348,8 +576,10 @@ export function buildCityLife(scene, world) {
   });
 
   let t = 0;
+  let crowdTick = 0;
   function update(dt) {
     t += dt;
+    if (++crowdTick % 2 === 0) crowd.update(t); // gentle sway, every other frame to save phones
     for (const p of people) {
       const { group } = p;
       // walk in a slow loop around their spot; the dhaki and purohit mostly stay put
@@ -387,5 +617,5 @@ export function buildCityLife(scene, world) {
     return best;
   }
 
-  return { stalls, nearestStall, update };
+  return { stalls, nearestStall, update, crowdCount: crowd.count };
 }
