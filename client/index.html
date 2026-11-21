@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#1a0f0a">
   <title>Pandal Dash</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="/socket.io/socket.io.js"></script>
   <script type="importmap">
     {
       "imports": {
@@ -16,11 +18,77 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div id="hud">
-    <div id="title">Pandal Dash</div>
-    <div id="hint">WASD to move · Shift to sprint · drag to look</div>
-    <div id="stamina"><div id="stamina-fill"></div></div>
+
+  <!-- MENU -->
+  <section id="menu" class="screen">
+    <div class="card">
+      <h1>Pandal <span>Dash</span></h1>
+      <p class="how">Run through Kolkata and reach as many glowing <b>pandals</b> as you can before time runs out.<br>
+        <b>+3</b> pandal · <b>+5</b> hidden ghetto pandal · <b>+2</b> if you're first</p>
+      <label class="field">Your name <input id="name" maxlength="16" autocomplete="off"></label>
+      <div class="field">Round length
+        <div class="chips" id="dur-menu">
+          <button data-d="120">2:00</button><button data-d="150" class="on">2:30</button><button data-d="180">3:00</button>
+        </div>
+      </div>
+      <button id="btn-solo" class="big">▶ PLAY SOLO</button>
+      <div class="row">
+        <button id="btn-create">Create room</button>
+        <input id="code" placeholder="CODE" maxlength="5" autocomplete="off">
+        <button id="btn-join">Join</button>
+      </div>
+      <p id="menu-msg" class="msg"></p>
+      <p class="keys">💻 WASD move · Shift sprint · drag to look &nbsp; 📱 joystick + SPRINT</p>
+    </div>
+  </section>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="screen hidden">
+    <div class="card">
+      <p class="small">Room code — tell your friends</p>
+      <div id="lobby-code" class="code">-----</div>
+      <ul id="lobby-players" class="plist"></ul>
+      <div class="field">Round length
+        <div class="chips" id="dur-lobby">
+          <button data-d="120">2:00</button><button data-d="150">2:30</button><button data-d="180">3:00</button>
+        </div>
+      </div>
+      <button id="btn-start" class="big">START</button>
+      <p id="lobby-msg" class="msg"></p>
+      <button id="btn-leave" class="link">Leave room</button>
+    </div>
+  </section>
+
+  <!-- IN-GAME HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div id="timer">2:30</div>
+      <div id="clock">4:00 PM</div>
+    </div>
+    <div id="hud-left">
+      <div id="score">0 <small>pts</small></div>
+      <div id="found">0 found</div>
+      <div id="stamina"><div id="stamina-fill"></div></div>
+    </div>
+    <ol id="board"></ol>
+    <div id="compass"><div id="arrow">➤</div><div id="target"></div></div>
+    <div id="banner" class="hidden"></div>
+    <div id="toasts"></div>
+    <div id="countdown" class="hidden"></div>
   </div>
+
+  <!-- RESULTS -->
+  <section id="results" class="screen hidden">
+    <div class="card">
+      <p class="small">Round over</p>
+      <h2 id="winner"></h2>
+      <ol id="final" class="plist"></ol>
+      <button id="btn-again" class="big">PLAY AGAIN</button>
+      <p id="results-msg" class="msg"></p>
+      <button id="btn-menu" class="link">Main menu</button>
+    </div>
+  </section>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
