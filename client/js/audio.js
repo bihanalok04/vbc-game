@@ -423,6 +423,21 @@ export class PandalAudio {
     this.sfxBus.gain.value = 0.7;
     [this.musicBus, this.ambienceBus, this.sfxBus].forEach((b) => b.connect(this.master));
 
+    // Dhak channel: boosted bass for the deep drum thump, a little extra snap
+    // on the stick hits, and its own level so it stands out over the crowd.
+    this.dhakBus = ctx.createGain();
+    this.dhakBus.gain.value = 1.35;
+    const dhakBass = ctx.createBiquadFilter();
+    dhakBass.type = 'lowshelf';
+    dhakBass.frequency.value = 180;
+    dhakBass.gain.value = 8;
+    const dhakSnap = ctx.createBiquadFilter();
+    dhakSnap.type = 'peaking';
+    dhakSnap.frequency.value = 2600;
+    dhakSnap.Q.value = 0.9;
+    dhakSnap.gain.value = 4;
+    this.dhakBus.connect(dhakBass).connect(dhakSnap).connect(this.ambienceBus);
+
     // Generate all sounds once.
     this.buffers = {
       dhakBig: dhakLoop(ctx, { withKashor: true, busy: true }),
@@ -519,9 +534,9 @@ export class PandalAudio {
       const dhak = new Emitter(this, {
         x: p.x, z: p.z, y: 2,
         buffer: big ? this.buffers.dhakBig : this.buffers.dhakSmall,
-        bus: this.ambienceBus,
-        gain: big ? 1 : 0.6,
-        refDistance: big ? 8 : 5,
+        bus: this.dhakBus,
+        gain: big ? 1.5 : 0.95,
+        refDistance: big ? 14 : 8, // carries farther down the lanes
       });
       dhak.small = !big;
       this.dhaks.push(dhak);
@@ -576,7 +591,7 @@ export class PandalAudio {
       L.setOrientation(fx, 0, fz, 0, 1, 0);
     }
 
-    this.updateNearest(this.dhaks, MAX_ACTIVE_DHAK, dt);
+    this.updateNearest(this.dhaks, MAX_ACTIVE_DHAK, dt, 100); // dhak is heard from farther away
     this.updateNearest(this.crowds, MAX_ACTIVE_CROWDS, dt);
 
     // Police whistles in jhamela crowds (only with the generated crowd; the real
@@ -594,12 +609,12 @@ export class PandalAudio {
   }
 
   // Only the closest few sources play; the rest fade out to save CPU.
-  updateNearest(list, maxActive, dt) {
+  updateNearest(list, maxActive, dt, range = AUDIBLE_RANGE) {
     const ranked = list
       .map((e) => ({ e, d: e.updateDoppler(this.listener, dt) }))
       .sort((a, b) => a.d - b.d);
     ranked.forEach(({ e, d }, i) => {
-      if (i < maxActive && d < AUDIBLE_RANGE) e.start();
+      if (i < maxActive && d < range) e.start();
       else e.stop();
     });
   }
