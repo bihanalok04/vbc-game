@@ -1,41 +1,115 @@
 # Pandal Dash — The Great Pandal Hunt
 
-A browser-based multiplayer 3D game inspired by Kolkata's Durga Puja.
+**Pandal-hopping in Kolkata during Durga Puja, as a real-time multiplayer 3D browser game.**
+Race your friends through a 3D Kolkata to find pandals before time runs out. It works on
+phones and laptops, with no install and no sign-in.
+
+▶ **Play now: [LIVE LINK — add after deploy]**
+🎬 **Demo video: [VIDEO LINK]**
+
+Built at Vibe Coders Hackathon Edition 3, Kolkata.
+
+## How to play
+
+1. Enter your name and pick a round time: **2:00, 2:30 or 3:00**.
+2. **Play solo**, or **Create room** and share the 5-letter code so friends can **Join** (2–8 players).
+3. Explore the city: **WASD / arrow keys** or the **on-screen joystick**. **Shift** or the **sprint button** sprints, but it uses stamina. Drag to look around.
+4. Walk up to a pandal to discover it:
+   - Regular pandal **+3**
+   - Hidden **ghetto pandal +5**
+   - First player to find it **+2**
+5. The arrow at the top points to the nearest pandal you haven't found. Ghetto pandals hide in the lanes and don't appear on it.
+6. The highest score when the timer ends wins.
+
+## Features
+
+- **Real-time multiplayer** with Socket.IO: rooms with codes, live positions, a live leaderboard, and a server-controlled timer.
+- **Fair play enforced by the server:** it checks every discovery against your distance, rejects impossible speeds and teleports, and awards the first-finder bonus to only one player.
+- **A 3D Kolkata in Three.js:**
+  - North-Kolkata buildings, yellow Ambassador taxis, tram tracks and the Hooghly riverbank
+  - 10 big pandals with gates, name banners, Durga idols, fairy lights and light beams in the sky
+  - 5 small hidden ghetto pandals
+  - Every player gets the same city, generated from a fixed seed.
+- **Day to night:** each round runs the city clock from 4 PM to 6 AM. The sky darkens, and windows, street lamps and pandals light up. All players see the same time.
+- **Random events:**
+  - *Dhunuchi Dance* gives double points.
+  - *Dhaker Beat* gives a speed boost.
+  - *Sudden Rain* slows everyone down.
+  - *Para Gossip* reveals a hidden pandal.
+- **3D sound with the Doppler effect,** all generated in code with no audio files:
+  - dhak drums at every pandal, crowd murmur, and noisy "jhamela" crowds with police whistles
+  - honking cars whose pitch shifts as they pass you
+  - tanpura background music and the shankh (conch shell)
+- **Works on phones:** touch joystick, sprint button, a layout for small screens, and lighter graphics for phones.
+
+## Tech stack
+
+| Part | Technology |
+|---|---|
+| 3D game | Three.js, HTML, CSS, JavaScript (ES modules) |
+| Real-time multiplayer | Socket.IO |
+| Server | Node.js + Express |
+| Sound | Web Audio API: sounds generated in code, 3D positional audio, Doppler |
+| Hosting | Render (one free web service for the game and the server) |
+
+## Project structure
 
 ```
 vbc-game/
-├── client/            Frontend (Three.js, HTML, CSS) — Members 1, 2, 4
-└── server/            Backend (Node.js, Express, Socket.IO) — Member 3
-    ├── src/
-    │   ├── index.js        Starts the server, HTTP routes, socket events
-    │   ├── config.js       All tuning numbers (timer, points, speeds)
-    │   ├── pandals.js      Pandal positions and spawn points
-    │   ├── events.js       Random events
-    │   ├── Room.js         One game room: players, timer, scoring
-    │   └── RoomManager.js  Creates and finds rooms
-    └── test/simulate.js    Two fake players play a round to check everything
+├── client/                 The game (served by the Node server)
+│   ├── index.html          Menus, HUD, results
+│   ├── css/style.css
+│   └── js/
+│       ├── main.js         Game flow: menus, rooms, HUD, networking
+│       ├── world.js        3D Kolkata city and pandals
+│       ├── player.js       Movement, third-person camera, sprint and stamina
+│       ├── remotePlayers.js Other players with name tags
+│       ├── touch.js        Phone joystick and sprint button
+│       └── audio.js        3D sound engine with Doppler effect
+├── server/
+│   ├── src/
+│   │   ├── index.js        HTTP routes and Socket.IO events
+│   │   ├── Room.js         One game room: players, timer, scoring, events
+│   │   ├── RoomManager.js  Room codes
+│   │   ├── config.js       All tuning numbers
+│   │   ├── pandals.js      Pandal positions
+│   │   ├── soundMap.js     Crowd zones and roads for sound
+│   │   ├── dayCycle.js     Shared day/night clock
+│   │   └── events.js       Random events
+│   └── test/simulate.js    Automated test: players play a full round
+└── render.yaml             One-click Render deploy
 ```
 
-## Run the backend
+## Run it locally
 
 ```
-cd server
-npm install
-npm run dev
+npm run build   # installs the server's packages
+npm run dev     # starts the game at http://localhost:3000
+npm test        # 28 automated checks: rooms, modes, scoring, anti-cheat, timer
 ```
 
-The server runs at http://localhost:3000. Check http://localhost:3000/health.
-If a `client/` folder exists, the server also serves it, so the whole game
-works at http://localhost:3000 during development.
+Open http://localhost:3000 in two tabs to try multiplayer. To try the sound engine on its own,
+open http://localhost:3000/audio-test.html.
 
-Run `npm test` to check that rooms, movement and scoring work.
+## Team
+
+| Member | Built |
+|---|---|
+| Sohom | Backend, multiplayer, scoring, sound engine, game flow |
+| Bihan | Player movement, camera, stamina, phone controls, deployment |
+| Susmit | City, roads, buildings and pandals |
+| Pranjal | UI, menus, leaderboard and integration |
+
+---
+
+# Developer notes
 
 ## How the frontend talks to the backend
 
-Load Socket.IO in the HTML page:
+The game server also serves the Socket.IO client, so load it from there (no third-party CDN):
 
-```html
-<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+```js
+const { io } = await import('/socket.io/socket.io.esm.min.js');
 ```
 
 ```js
