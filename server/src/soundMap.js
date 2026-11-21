@@ -4,14 +4,14 @@
 // edit these to match your city.
 
 const CROWD_ZONES = [
-  // "jhamela" = packed, noisy crowds with police whistles. "murmur" = calmer chatter.
-  { id: 'crowd-santosh-mitra', x: 60, z: -30, radius: 30, intensity: 'jhamela' },
-  { id: 'crowd-md-ali-park', x: 20, z: -90, radius: 28, intensity: 'jhamela' },
-  { id: 'crowd-deshapriya', x: 40, z: 70, radius: 30, intensity: 'jhamela' },
-  { id: 'crowd-bagbazar', x: -120, z: -110, radius: 25, intensity: 'murmur' },
-  { id: 'crowd-suruchi', x: -20, z: 120, radius: 25, intensity: 'murmur' },
-  { id: 'crowd-ekdalia', x: 100, z: 90, radius: 25, intensity: 'murmur' },
-  { id: 'crowd-college-square', x: -40, z: -60, radius: 22, intensity: 'murmur' },
+  // "jhamela" = packed, noisy crowds. "murmur" = calmer chatter.
+  { id: 'crowd-santosh-mitra', x: 30, z: -35, radius: 30, intensity: 'jhamela' },
+  { id: 'crowd-md-ali-park', x: -60, z: -55, radius: 28, intensity: 'jhamela' },
+  { id: 'crowd-deshapriya', x: -45, z: 105, radius: 30, intensity: 'jhamela' },
+  { id: 'crowd-bagbazar', x: -128, z: -130, radius: 25, intensity: 'murmur' },
+  { id: 'crowd-suruchi', x: -85, z: 140, radius: 25, intensity: 'murmur' },
+  { id: 'crowd-ekdalia', x: 40, z: 110, radius: 25, intensity: 'murmur' },
+  { id: 'crowd-college-square', x: -30, z: -25, radius: 22, intensity: 'murmur' },
   { id: 'crowd-crossing', x: 0, z: 0, radius: 20, intensity: 'murmur' },
 ];
 
