@@ -420,12 +420,9 @@ export class PandalAudio {
       beepHigh: beepSound(ctx, 990),
     };
 
-    // Background music: tanpura drone, plays everywhere (not positional).
-    this.music = ctx.createBufferSource();
-    this.music.buffer = this.buffers.tanpura;
-    this.music.loop = true;
-    this.music.connect(this.musicBus);
-    this.music.start();
+    // No synthesized background drone any more (it buzzed). The real dhak at the
+    // pandals is the music. Real recordings replace the generated sounds as they load.
+    this.loadRecordings();
 
     // Rain bed for the rain event (silent until needed).
     const rain = ctx.createBufferSource();
@@ -441,6 +438,42 @@ export class PandalAudio {
 
     this.started = true;
     if (this.pendingSetup) this.setup(this.pendingSetup);
+  }
+
+  // Real recordings from Wikimedia Commons (free licences, credited in README.md),
+  // loaded straight into the player's browser. If one fails to load, the
+  // generated version stays in its place.
+  async loadRecordings() {
+    const base = 'https://upload.wikimedia.org/wikipedia/commons/transcoded/';
+    const files = {
+      dhak: `${base}0/04/Puja_dhak.ogg/Puja_dhak.ogg.mp3`,
+      dhak2: `${base}4/46/Durga_Puja_Dhak_Dhol.ogg/Durga_Puja_Dhak_Dhol.ogg.mp3`,
+      shankh: `${base}2/24/Conch_shell.ogg/Conch_shell.ogg.mp3`,
+      crowd: `${base}a/a9/360703_eguobyte_large-crowd-medium-distance-stereo.wav/360703_eguobyte_large-crowd-medium-distance-stereo.wav.mp3`,
+      traffic: `${base}2/27/Sounds_of_Traffic_and_Sellers.ogg/Sounds_of_Traffic_and_Sellers.ogg.mp3`,
+    };
+    this.real = {};
+    await Promise.all(Object.entries(files).map(async ([key, url]) => {
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error(res.status);
+        this.real[key] = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch (err) {
+        console.warn(`Sound "${key}" could not load, using the generated one`, err);
+      }
+    }));
+    const r = this.real;
+    if (r.dhak) { this.buffers.dhakBig = r.dhak; this.buffers.dhakSmall = r.dhak2 || r.dhak; }
+    else if (r.dhak2) { this.buffers.dhakBig = this.buffers.dhakSmall = r.dhak2; }
+    if (r.crowd) { this.buffers.crowd = r.crowd; this.buffers.jhamela = r.crowd; }
+    if (r.traffic) this.buffers.engine = r.traffic;
+    if (r.shankh) { this.buffers.shankh = r.shankh; this.buffers.shankhLong = r.shankh; }
+    // Swap the new recordings into sources that are already playing.
+    for (const e of [...this.dhaks, ...this.crowds]) {
+      e.buffer = e.jhamela !== undefined ? this.buffers.crowd : (e.small ? this.buffers.dhakSmall : this.buffers.dhakBig);
+      if (e.active) e.stop(); // restarts with the real sound on the next frame
+    }
+    this.cars.forEach((c) => { c.buffer = this.buffers.engine; if (c.active) c.dead = true; });
   }
 
   makePanner(refDistance) {
@@ -460,13 +493,15 @@ export class PandalAudio {
     const map = data.soundMap || data;
     for (const p of data.pandals || []) {
       const big = p.type !== 'ghetto';
-      this.dhaks.push(new Emitter(this, {
+      const dhak = new Emitter(this, {
         x: p.x, z: p.z, y: 2,
         buffer: big ? this.buffers.dhakBig : this.buffers.dhakSmall,
         bus: this.ambienceBus,
         gain: big ? 1 : 0.6,
         refDistance: big ? 8 : 5,
-      }));
+      });
+      dhak.small = !big;
+      this.dhaks.push(dhak);
     }
     for (const c of map.crowdZones || []) {
       const loud = c.intensity === 'jhamela';
@@ -521,9 +556,10 @@ export class PandalAudio {
     this.updateNearest(this.dhaks, MAX_ACTIVE_DHAK, dt);
     this.updateNearest(this.crowds, MAX_ACTIVE_CROWDS, dt);
 
-    // Police whistles in jhamela crowds
+    // Police whistles in jhamela crowds (only with the generated crowd; the real
+    // recording already sounds like a real crowd)
     for (const c of this.crowds) {
-      if (!c.active || !c.jhamela) continue;
+      if (!c.active || !c.jhamela || this.real?.crowd) continue;
       c.nextWhistle -= dt;
       if (c.nextWhistle <= 0) {
         c.playOneShot(this.buffers.whistle, 0.5);
@@ -555,7 +591,7 @@ export class PandalAudio {
       car.setPosition(r.x1 + (r.x2 - r.x1) * k, 1, r.z1 + (r.z2 - r.z1) * k);
       const d = car.updateDoppler(this.listener, dt);
       car.honkIn -= dt;
-      if (car.honkIn <= 0) {
+      if (car.honkIn <= 0 && !this.real?.traffic) {
         const horns = this.buffers.horns;
         car.playOneShot(horns[Math.floor(Math.random() * horns.length)], 0.8);
         car.honkIn = 2 + Math.random() * 5;
@@ -600,7 +636,7 @@ export class PandalAudio {
       bus: this.ambienceBus,
       gain: 0.35,
       refDistance: 5,
-      rate: 0.8 + Math.random() * 0.5, // different vehicles, different engine pitch
+      rate: this.real?.traffic ? 1 : 0.8 + Math.random() * 0.5, // real recording plays at natural pitch
     });
     Object.assign(car, { road: o.r, pos, dir, speed: 10 + Math.random() * 8, honkIn: 0.5 + Math.random() * 2 });
     const k = pos / o.len;
