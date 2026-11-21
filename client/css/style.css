@@ -12,6 +12,24 @@ button { font: inherit; cursor: pointer; }
 #timer.low { color: #ff5d5d; }
 #clock { font-size: 13px; opacity: .9; }
 #score { font-size: 18px; font-weight: 700; margin-top: 4px; }
+#ghee-label { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #ffe08a; margin-top: 8px; }
+#ghee-out { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 20; }
+#ghee-out span {
+  font-size: clamp(40px, 11vw, 110px); font-weight: 900; font-style: italic; letter-spacing: 2px;
+  background: linear-gradient(90deg, #ffd166, #ff006e, #fb8500, #ffd166); background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: 2px #2a1404; filter: drop-shadow(0 6px 0 #2a1404) drop-shadow(0 0 18px rgba(255,190,11,.8));
+  animation: ghee-pop 1.5s ease-out forwards, ghee-shine 0.6s linear infinite;
+}
+@keyframes ghee-pop {
+  0% { transform: scale(0.2) rotate(-18deg); opacity: 0; }
+  15% { transform: scale(1.25) rotate(6deg); opacity: 1; }
+  25% { transform: scale(0.95) rotate(-4deg); }
+  35% { transform: scale(1.05) rotate(2deg); }
+  80% { transform: scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1.4) rotate(0deg); opacity: 0; }
+}
+@keyframes ghee-shine { to { background-position: 300% 0; } }
 #stamina { width: 140px; height: 8px; margin-top: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; }
 #stamina-fill { height: 100%; width: 100%; background: var(--gold); transition: width 0.1s linear; }
 #compass { text-align: center; text-shadow: 0 2px 4px #000; }

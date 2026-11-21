@@ -1,4 +1,4 @@
-﻿// OWNER: Pranjal (game loop, menus, HUD, networking glue).
+// OWNER: Pranjal (game loop, menus, HUD, networking glue).
 // Ties everything together: menu -> (solo | multiplayer lobby) -> countdown ->
 // round (move, find pandals, events, day/night, sound) -> results.
 import * as THREE from 'three';
@@ -54,7 +54,7 @@ async function loadMap() {
 
 const mapData = await loadMap();
 const world = buildWorld(scene, mapData);
-const life = buildCityLife(scene, world); // food stalls
+const life = buildCityLife(scene, world, mapData); // food stalls, Puja crowds, Bengali decorations
 // Everything solid casts and receives shadows (only matters when shadows are on)
 if (!IS_PHONE) {
   scene.traverse((o) => {
@@ -71,7 +71,7 @@ player.setAutoCamera?.(touch.isTouch); // on phones the camera follows the joyst
 const stallCooldown = new Map(); // stall id -> time you can eat there again
 
 // ---------- playable character ----------
-const ICONS = { motaBabu: 'ðŸ§”ðŸ½', teen: 'ðŸ¤³ðŸ½', mashima: 'ðŸ‘©ðŸ½â€ðŸ¦³', purohit: 'ðŸ™ðŸ½', phuchkawala: 'ðŸ¥Ÿ', jhalmuriwala: 'ðŸ¥œ', student: 'ðŸŽ“', kid: 'ðŸŽˆ' };
+const ICONS = { motaBabu: '🧔🏽', teen: '🤳🏽', mashima: '👩🏽‍🦳', purohit: '🙏🏽', phuchkawala: '🥟', jhalmuriwala: '🥜', student: '🎓', kid: '🎈' };
 let myCharacter = 'motaBabu';
 try { myCharacter = localStorage.getItem('pd-char') || myCharacter; } catch {}
 let myModel = null;
@@ -149,7 +149,7 @@ const { io } = await import(`${SERVER_URL}/socket.io/socket.io.esm.min.js`);
 const socket = io(SERVER_URL || undefined, { transports: ['websocket', 'polling'] });
 window.__pd = { state, player, socket, world }; // handy for debugging in the browser console
 socket.on('connect', () => { state.myId = socket.id; $('menu-status').textContent = ''; });
-socket.on('connect_error', () => { $('menu-status').textContent = 'Connecting to the game serverâ€¦'; });
+socket.on('connect_error', () => { $('menu-status').textContent = 'Connecting to the game server…'; });
 socket.on('disconnect', () => {
   if (state.phase !== 'menu') {
     state.phase = 'menu';
@@ -222,8 +222,8 @@ function renderLobby() {
   $('start-btn').classList.toggle('hidden', !isHost);
   $('start-btn').disabled = !enough;
   $('lobby-status').textContent = isHost
-    ? (enough ? '' : 'Waiting for at least one more playerâ€¦')
-    : 'Waiting for the host to startâ€¦';
+    ? (enough ? '' : 'Waiting for at least one more player…')
+    : 'Waiting for the host to start…';
 }
 $('lobby-time').addEventListener('click', (e) => {
   const sec = Number(e.target.dataset.sec);
@@ -331,7 +331,7 @@ socket.on('pandal:discovered', (d) => {
     $('score').textContent = `${d.totalScore} pts`;
     world.markDiscovered(d.pandalId);
     audio.playSfx(d.first ? 'first' : 'discover');
-    toast(`${d.pandalName} +${d.points}${d.first ? ' Â· first!' : ''}${d.breakdown.multiplier > 1 ? ' Ã—2' : ''}`, true);
+    toast(`${d.pandalName} +${d.points}${d.first ? ' · first!' : ''}${d.breakdown.multiplier > 1 ? ' ×2' : ''}`, true);
   } else {
     toast(`${d.playerName} found ${d.pandalName}${d.first ? ' first' : ''}`);
   }
@@ -375,7 +375,7 @@ socket.on('game:ended', ({ leaderboard, winner, reason }) => {
     ? `You scored ${me?.score ?? 0} points!`
     : winner ? `${winner.name} wins!` : 'Round over';
   $('final-board').innerHTML = leaderboard
-    .map((r) => `<li><span>${r.rank}. <i class="dot" style="background:${r.color}"></i>${escapeHtml(r.name)}</span><span>${r.score} pts Â· ${r.found} found</span></li>`)
+    .map((r) => `<li><span>${r.rank}. <i class="dot" style="background:${r.color}"></i>${escapeHtml(r.name)}</span><span>${r.score} pts · ${r.found} found</span></li>`)
     .join('') + (reason === 'all-found' ? '<li><span>Every pandal was found!</span></li>' : '');
   const isHost = state.room?.hostId === state.myId;
   $('again-btn').classList.toggle('hidden', !solo && !isHost);
@@ -422,10 +422,32 @@ function updateCompass(yaw) {
   const angle = Math.atan2(tx * -fz + tz * fx, tx * fx + tz * fz);
   $('compass-arrow').style.opacity = 1;
   $('compass-arrow').style.transform = `rotate(${angle}rad)`;
-  $('compass-label').textContent = `${state.spotlight ? 'ðŸ¤« ' : ''}${target.name} Â· ${Math.round(Math.hypot(tx, tz))} m`;
+  $('compass-label').textContent = `${state.spotlight ? '🤫 ' : ''}${target.name} · ${Math.round(Math.hypot(tx, tz))} m`;
 }
 
 const staminaFill = $('stamina-fill');
+let lastGhee = 1;
+let gheeTimer = null;
+function gheeKhatam() {
+  const el = $('ghee-out');
+  // restart the pop animation each time
+  el.classList.add('hidden');
+  void el.offsetWidth;
+  el.classList.remove('hidden');
+  clearTimeout(gheeTimer);
+  gheeTimer = setTimeout(() => el.classList.add('hidden'), 1500);
+  try {
+    // dramatic, high-pitched, over-the-top voice
+    const say = new SpeechSynthesisUtterance('Ghee khatam!');
+    const voices = speechSynthesis.getVoices();
+    say.voice = voices.find((v) => /hi-IN|bn-IN|en-IN/i.test(v.lang)) || null;
+    say.pitch = 1.9;
+    say.rate = 0.85;
+    say.volume = 1;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(say);
+  } catch {}
+}
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -449,13 +471,16 @@ renderer.setAnimationLoop(() => {
   if (state.phase === 'playing') {
     staminaFill.style.width = `${s.stamina * 100}%`;
     staminaFill.style.background = s.surgeLeft > 0 ? '#52d273' : '';
+    // Ghee ran out: flamboyant "GHEE KHATAM!" for 1.5 s, said out loud too
+    if (s.stamina <= 0 && lastGhee > 0) gheeKhatam();
+    lastGhee = s.stamina;
     // Street food: walk up to a stall to eat and get a stamina surge.
     const stall = life.nearestStall(s.x, s.z, 3.4);
     if (stall && (stallCooldown.get(stall.id) || 0) < now) {
       stallCooldown.set(stall.id, now + 25000);
       player.staminaSurge?.(8);
       audio.playSfx('discover');
-      toast(`${stall.food}! Stamina surge ðŸ’ª`, true);
+      toast(`${stall.food}! Ghee boost 🧈💪`, true);
     }
     const left = state.endsAt - (Date.now() + state.clockOffset);
     $('timer').textContent = fmtTime(left);

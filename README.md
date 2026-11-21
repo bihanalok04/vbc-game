@@ -42,7 +42,9 @@ Built at Vibe Coders Hackathon Edition 3, Kolkata.
   - honking cars whose pitch shifts as they pass you
   - tanpura background music and the shankh (conch shell)
 - **Works on phones:** touch joystick (the camera follows where you steer), sprint and jump buttons, a layout for small screens, and lighter graphics for phones.
-- **Kolkata street food:** phuchka, kathi roll, jhalmuri, bhaar chai, rosogolla, ghugni and mishti doi stalls. Eat at one for an 8-second stamina surge.
+- **Kolkata street food and the Ghee meter:** sprinting burns ghee. Phuchka, kathi roll, jhalmuri, bhaar chai, rosogolla, ghugni and mishti doi stalls give an 8-second ghee boost. Run dry and the game shouts **"GHEE KHATAM!"**
+- **The real Kolkata map, compressed:** pandals sit where they are in the city: North Kolkata on the Hooghly (Bagbazar, Kumartuli, Ahiritola), central (Md. Ali Park, College Square, Santosh Mitra Square) and South (Deshapriya Park, Tridhara, Ekdalia Evergreen, Suruchi Sangha), with the distances shrunk to fit a round.
+- **Puja crowds and Bengali touches:** more than 500 festive people in sarees and panjabis queue at the pandals, with alpana at the entrances, marigold garlands over the roads, kash flowers on the riverbank, and "শুভ শারদীয়া / Subho Sharodiya" arches.
 - **Play as one of 8 Bengali characters** (pick in the menu; other players see your character): a mota babu with his umbrella, a teen in a new Puja kurta taking selfies, a mashima in a laal-paar saree, a purohit with a smoking dhunuchi, a phuchkawala, a jhalmuriwala with his tin box, a College Street student with a jhola, and a kid with a balloon.
 - **North-Kolkata lanes:** weathered orange and ochre walls, green-shuttered balconies, sagging overhead wires, parked motorbikes, coconut palms on the ghat.
 
