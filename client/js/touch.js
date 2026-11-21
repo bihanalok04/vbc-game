@@ -1,4 +1,4 @@
-// Phone controls: an on-screen joystick and a sprint button.
+﻿// Phone controls: an on-screen joystick and a sprint button.
 // They "press" the same keys the keyboard does (W/A/S/D and Shift), so the
 // player movement code (player.js) works on phones without any changes.
 
@@ -10,7 +10,7 @@ function press(code, down) {
 
 export function setupTouchControls() {
   const root = document.getElementById('touch');
-  if (!isTouch) return { show() {}, hide() {} };
+  if (!isTouch) return { isTouch: false, show() {}, hide() {} };
 
   const stick = document.getElementById('stick');
   const knob = document.getElementById('stick-knob');
@@ -68,7 +68,17 @@ export function setupTouchControls() {
   sprint.addEventListener('pointercancel', stopSprint);
   sprint.addEventListener('pointerleave', stopSprint);
 
+  // Jump: a quick tap presses Space
+  const jump = document.getElementById('jump-btn');
+  jump.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    jump.classList.add('on');
+    press('Space', true);
+    setTimeout(() => { press('Space', false); jump.classList.remove('on'); }, 150);
+  });
+
   return {
+    isTouch: true,
     show() { root.classList.remove('hidden'); },
     hide() { root.classList.add('hidden'); end(); stopSprint(); },
   };

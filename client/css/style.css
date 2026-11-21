@@ -37,6 +37,8 @@ button { font: inherit; cursor: pointer; }
 #stick-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(255,204,51,.8); }
 #sprint-btn { position: absolute; right: 24px; bottom: 48px; width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(193,18,31,.6); color: #fff; font-weight: 800; pointer-events: auto; touch-action: none; }
 #sprint-btn.on { background: var(--gold); color: #2a1404; }
+#jump-btn { position: absolute; right: 132px; bottom: 24px; width: 72px; height: 72px; border-radius: 50%; border: 2px solid #fff; background: rgba(42,157,143,.65); color: #fff; font-weight: 800; font-size: 13px; pointer-events: auto; touch-action: none; }
+#jump-btn.on { background: #fff; color: #1d3557; }
 
 /* ---------- menus ---------- */
 .screen { position: fixed; inset: 0; display: flex; padding: 16px; background: radial-gradient(circle at 50% 30%, rgba(193,18,31,.35), rgba(10,5,3,.85)); overflow-y: auto; }

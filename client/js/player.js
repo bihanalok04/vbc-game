@@ -68,6 +68,12 @@ export function createPlayer(scene, camera, world, domElement) {
   let enabled = false;
   let anim = 'idle';
   let bob = 0;
+  let surgeLeft = 0; // seconds of free sprinting after eating at a food stall
+  let vy = 0; // vertical speed for jumping
+  let height = 0; // how high off the ground
+  let autoCamera = false; // phones: camera swings round to follow the joystick direction
+  const JUMP_SPEED = 7;
+  const GRAVITY = 20;
 
   function blocked(x, z) {
     for (const c of world.colliders) {
@@ -94,9 +100,16 @@ export function createPlayer(scene, camera, world, domElement) {
     if (stamina <= 0) exhausted = true;
     if (exhausted && stamina >= STAMINA_MIN_RESTART) exhausted = false;
     sprinting = moving && wantSprint && !exhausted;
-    stamina = sprinting
-      ? Math.max(0, stamina - STAMINA_DRAIN * dt)
-      : Math.min(1, stamina + STAMINA_REGEN * dt);
+    if (surgeLeft > 0) {
+      // Food surge: stamina stays full while it lasts.
+      surgeLeft = Math.max(0, surgeLeft - dt);
+      stamina = 1;
+      exhausted = false;
+    } else {
+      stamina = sprinting
+        ? Math.max(0, stamina - STAMINA_DRAIN * dt)
+        : Math.min(1, stamina + STAMINA_REGEN * dt);
+    }
 
     if (moving) {
       // Normalise so diagonals are not faster.
@@ -123,12 +136,30 @@ export function createPlayer(scene, camera, world, domElement) {
       let diff = targetRot - object.rotation.y;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       object.rotation.y += diff * Math.min(1, dt * 12);
+
+      // Phone joystick: swing the camera round behind wherever the player is heading
+      // (not when walking backwards, or the camera would spin).
+      if (autoCamera && fz > -0.5) {
+        const camTargetYaw = Math.atan2(-mx, -mz);
+        let cd = camTargetYaw - camYaw;
+        cd = Math.atan2(Math.sin(cd), Math.cos(cd));
+        camYaw += cd * Math.min(1, dt * 2.2);
+      }
       bob += dt * (sprinting ? 16 : 10);
     } else {
       bob = 0;
     }
-    object.userData.body.position.y = 1.1 + Math.abs(Math.sin(bob)) * 0.15;
-    anim = !moving ? 'idle' : sprinting ? 'run' : 'walk';
+    // Jump (Space or the jump button) with simple gravity.
+    if (enabled && (keys.has('Space')) && height === 0) vy = JUMP_SPEED;
+    if (height > 0 || vy > 0) {
+      vy -= GRAVITY * dt;
+      height = Math.max(0, height + vy * dt);
+      if (height === 0) vy = 0;
+    }
+    object.position.y = height;
+
+    object.userData.body.position.y = 1.1 + (height > 0 ? 0 : Math.abs(Math.sin(bob)) * 0.15);
+    anim = height > 0 ? 'jump' : !moving ? 'idle' : sprinting ? 'run' : 'walk';
 
     // Third-person camera behind the player along camYaw.
     camTarget.set(
@@ -145,8 +176,11 @@ export function createPlayer(scene, camera, world, domElement) {
     update,
     getState: () => ({
       x: object.position.x, y: 0, z: object.position.z,
-      rotY: object.rotation.y, anim, stamina, sprinting,
+      rotY: object.rotation.y, anim, stamina, sprinting, surgeLeft,
     }),
+    // Eating at a food stall: stamina refills and stays full for `seconds`.
+    setAutoCamera(v) { autoCamera = v; },
+    staminaSurge(seconds = 8) { surgeLeft = Math.max(surgeLeft, seconds); stamina = 1; exhausted = false; },
     getCameraYaw: () => camYaw,
     setPosition(x, z, faceCenter = false) {
       object.position.set(x, 0, z);
