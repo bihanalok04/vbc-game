@@ -1,4 +1,4 @@
-// OWNER: Pranjal (game loop, menus, HUD, networking glue).
+﻿// OWNER: Pranjal (game loop, menus, HUD, networking glue).
 // Ties everything together: menu -> (solo | multiplayer lobby) -> countdown ->
 // round (move, find pandals, events, day/night, sound) -> results.
 import * as THREE from 'three';
@@ -8,23 +8,40 @@ import { createPlayer } from './player.js';
 import { createRemotePlayers } from './remotePlayers.js';
 import { setupTouchControls } from './touch.js';
 import { PandalAudio } from './audio.js';
-import { buildCityLife } from './cityLife.js';
+import { buildCityLife, buildCharacter, animateCharacter, PLAYABLE } from './cityLife.js';
 
 // ---------- renderer, scene, lights ----------
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+// Cinematic colour: filmic tone mapping for warm, soft golden-hour light
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+const IS_PHONE = matchMedia('(pointer: coarse)').matches;
+// Long sun shadows on laptops/desktops (phones skip them to stay fast)
+renderer.shadowMap.enabled = !IS_PHONE;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87a8d0);
-scene.fog = new THREE.Fog(0x87a8d0, 60, 220);
+scene.background = new THREE.Color(0xa9c8e4);
+scene.fog = new THREE.Fog(0xe8cfa8, 50, 210); // warm haze on the horizon
 
 const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 500);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x444422, 1.2));
-const sun = new THREE.DirectionalLight(0xffeecc, 1.5);
-sun.position.set(50, 100, 30);
-scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xfff1dc, 0x6b4f3a, 1.0));
+// Low, warm afternoon sun so buildings and palms throw long shadows across the lanes
+const sun = new THREE.DirectionalLight(0xffd9a0, 2.2);
+const SUN_OFFSET = new THREE.Vector3(-70, 55, 40);
+sun.position.copy(SUN_OFFSET);
+sun.castShadow = !IS_PHONE;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = sun.shadow.camera.bottom = -70;
+sun.shadow.camera.right = sun.shadow.camera.top = 70;
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 250;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.05;
+scene.add(sun, sun.target);
 
 async function loadMap() {
   try {
@@ -37,12 +54,45 @@ async function loadMap() {
 
 const mapData = await loadMap();
 const world = buildWorld(scene, mapData);
-const life = buildCityLife(scene, world); // food stalls + 8 Bengali characters
+const life = buildCityLife(scene, world); // food stalls
+// Everything solid casts and receives shadows (only matters when shadows are on)
+if (!IS_PHONE) {
+  scene.traverse((o) => {
+    if (!o.isMesh) return;
+    const flat = o.geometry?.type === 'PlaneGeometry';
+    o.castShadow = !flat && !o.material?.transparent;
+    o.receiveShadow = true;
+  });
+}
 const player = createPlayer(scene, camera, world, canvas);
 const others = createRemotePlayers(scene);
 const touch = setupTouchControls();
 player.setAutoCamera?.(touch.isTouch); // on phones the camera follows the joystick
 const stallCooldown = new Map(); // stall id -> time you can eat there again
+
+// ---------- playable character ----------
+const ICONS = { motaBabu: 'ðŸ§”ðŸ½', teen: 'ðŸ¤³ðŸ½', mashima: 'ðŸ‘©ðŸ½â€ðŸ¦³', purohit: 'ðŸ™ðŸ½', phuchkawala: 'ðŸ¥Ÿ', jhalmuriwala: 'ðŸ¥œ', student: 'ðŸŽ“', kid: 'ðŸŽˆ' };
+let myCharacter = 'motaBabu';
+try { myCharacter = localStorage.getItem('pd-char') || myCharacter; } catch {}
+let myModel = null;
+function setMyCharacter(look) {
+  myCharacter = look;
+  try { localStorage.setItem('pd-char', look); } catch {}
+  // hide the default capsule and show the chosen character instead
+  player.object.children.forEach((c) => { if (c !== myModel) c.visible = false; });
+  if (myModel) player.object.remove(myModel);
+  myModel = buildCharacter(look);
+  player.object.add(myModel);
+  document.querySelectorAll('#char-choice button').forEach((b) => b.classList.toggle('on', b.dataset.look === look));
+}
+document.getElementById('char-choice').innerHTML = PLAYABLE
+  .map(([look, label]) => `<button data-look="${look}"><span class="ico">${ICONS[look]}</span>${label}</button>`)
+  .join('');
+document.getElementById('char-choice').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b) setMyCharacter(b.dataset.look);
+});
+setMyCharacter(PLAYABLE.some(([l]) => l === myCharacter) ? myCharacter : 'motaBabu');
 const audio = new PandalAudio();
 player.setEnabled(false);
 
@@ -99,7 +149,7 @@ const { io } = await import(`${SERVER_URL}/socket.io/socket.io.esm.min.js`);
 const socket = io(SERVER_URL || undefined, { transports: ['websocket', 'polling'] });
 window.__pd = { state, player, socket, world }; // handy for debugging in the browser console
 socket.on('connect', () => { state.myId = socket.id; $('menu-status').textContent = ''; });
-socket.on('connect_error', () => { $('menu-status').textContent = 'Connecting to the game server…'; });
+socket.on('connect_error', () => { $('menu-status').textContent = 'Connecting to the game serverâ€¦'; });
 socket.on('disconnect', () => {
   if (state.phase !== 'menu') {
     state.phase = 'menu';
@@ -128,7 +178,7 @@ $('time-choice').addEventListener('click', (e) => {
 function createRoom(mode) {
   startAudio();
   $('menu-status').textContent = '';
-  socket.emit('room:create', { name: playerName(), mode, durationSec: state.durationSec }, (res) => {
+  socket.emit('room:create', { name: playerName(), mode, durationSec: state.durationSec, character: myCharacter }, (res) => {
     if (!res?.ok) { $('menu-status').textContent = res?.error || 'Could not create a room.'; return; }
     enterRoom(res.room);
     if (mode === 'solo') socket.emit('game:start', {}, (r) => { if (!r?.ok) $('menu-status').textContent = r?.error; });
@@ -140,7 +190,7 @@ $('join-btn').onclick = () => {
   startAudio();
   const code = $('code').value.trim().toUpperCase();
   if (code.length !== 5) { $('menu-status').textContent = 'Enter the 5-letter room code.'; return; }
-  socket.emit('room:join', { code, name: playerName() }, (res) => {
+  socket.emit('room:join', { code, name: playerName(), character: myCharacter }, (res) => {
     if (!res?.ok) { $('menu-status').textContent = res?.error || 'Could not join.'; return; }
     enterRoom(res.room);
   });
@@ -172,8 +222,8 @@ function renderLobby() {
   $('start-btn').classList.toggle('hidden', !isHost);
   $('start-btn').disabled = !enough;
   $('lobby-status').textContent = isHost
-    ? (enough ? '' : 'Waiting for at least one more player…')
-    : 'Waiting for the host to start…';
+    ? (enough ? '' : 'Waiting for at least one more playerâ€¦')
+    : 'Waiting for the host to startâ€¦';
 }
 $('lobby-time').addEventListener('click', (e) => {
   const sec = Number(e.target.dataset.sec);
@@ -281,7 +331,7 @@ socket.on('pandal:discovered', (d) => {
     $('score').textContent = `${d.totalScore} pts`;
     world.markDiscovered(d.pandalId);
     audio.playSfx(d.first ? 'first' : 'discover');
-    toast(`${d.pandalName} +${d.points}${d.first ? ' · first!' : ''}${d.breakdown.multiplier > 1 ? ' ×2' : ''}`, true);
+    toast(`${d.pandalName} +${d.points}${d.first ? ' Â· first!' : ''}${d.breakdown.multiplier > 1 ? ' Ã—2' : ''}`, true);
   } else {
     toast(`${d.playerName} found ${d.pandalName}${d.first ? ' first' : ''}`);
   }
@@ -325,7 +375,7 @@ socket.on('game:ended', ({ leaderboard, winner, reason }) => {
     ? `You scored ${me?.score ?? 0} points!`
     : winner ? `${winner.name} wins!` : 'Round over';
   $('final-board').innerHTML = leaderboard
-    .map((r) => `<li><span>${r.rank}. <i class="dot" style="background:${r.color}"></i>${escapeHtml(r.name)}</span><span>${r.score} pts · ${r.found} found</span></li>`)
+    .map((r) => `<li><span>${r.rank}. <i class="dot" style="background:${r.color}"></i>${escapeHtml(r.name)}</span><span>${r.score} pts Â· ${r.found} found</span></li>`)
     .join('') + (reason === 'all-found' ? '<li><span>Every pandal was found!</span></li>' : '');
   const isHost = state.room?.hostId === state.myId;
   $('again-btn').classList.toggle('hidden', !solo && !isHost);
@@ -372,7 +422,7 @@ function updateCompass(yaw) {
   const angle = Math.atan2(tx * -fz + tz * fx, tx * fx + tz * fz);
   $('compass-arrow').style.opacity = 1;
   $('compass-arrow').style.transform = `rotate(${angle}rad)`;
-  $('compass-label').textContent = `${state.spotlight ? '🤫 ' : ''}${target.name} · ${Math.round(Math.hypot(tx, tz))} m`;
+  $('compass-label').textContent = `${state.spotlight ? 'ðŸ¤« ' : ''}${target.name} Â· ${Math.round(Math.hypot(tx, tz))} m`;
 }
 
 const staminaFill = $('stamina-fill');
@@ -383,6 +433,9 @@ renderer.setAnimationLoop(() => {
   player.update(dt);
   others.update(dt);
   life.update(dt);
+  // keep the shadow area centred on the player
+  { const p = player.object.position; sun.position.set(p.x + SUN_OFFSET.x, SUN_OFFSET.y, p.z + SUN_OFFSET.z); sun.target.position.set(p.x, 0, p.z); }
+  if (myModel) animateCharacter(myModel, player.getState().anim === 'walk' || player.getState().anim === 'run', now / 1000);
 
   camera.getWorldDirection(camDir);
   const yaw = Math.atan2(-camDir.x, -camDir.z);
@@ -402,7 +455,7 @@ renderer.setAnimationLoop(() => {
       stallCooldown.set(stall.id, now + 25000);
       player.staminaSurge?.(8);
       audio.playSfx('discover');
-      toast(`${stall.food}! Stamina surge 💪`, true);
+      toast(`${stall.food}! Stamina surge ðŸ’ª`, true);
     }
     const left = state.endsAt - (Date.now() + state.clockOffset);
     $('timer').textContent = fmtTime(left);

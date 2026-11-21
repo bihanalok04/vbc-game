@@ -129,7 +129,30 @@ function mat(color) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
 }
 
-function buildCharacter(look, i) {
+// The 8 playable characters, in menu order: [look id, label shown in the menu]
+export const PLAYABLE = [
+  ['motaBabu', 'Mota Babu'], ['teen', 'Puja Teen'], ['mashima', 'Mashima'], ['purohit', 'Purohit'],
+  ['phuchkawala', 'Phuchkawala'], ['jhalmuriwala', 'Jhalmuriwala'], ['student', 'Student'], ['kid', 'Kid'],
+];
+
+// Walk animation for a character model: swing legs and arms while moving.
+export function animateCharacter(group, moving, t) {
+  const swing = moving ? Math.sin(t * 9) * 0.55 : 0;
+  const { legs = [], arms = [], look } = group.userData;
+  legs.forEach((leg, k) => (leg.rotation.x = k ? swing : -swing));
+  if (look === 'teen' && arms[1]) {
+    arms[1].rotation.x = -2.3; // phone up for a selfie
+    if (arms[0]) arms[0].rotation.x = swing * 0.6;
+  } else {
+    arms.forEach((arm, k) => (arm.rotation.x = k ? -swing * 0.6 : swing * 0.6));
+  }
+  group.traverse((o) => {
+    if (o.userData.smoke) { o.position.y = 1.6 + ((t * 0.6) % 1) * 0.8; o.material.opacity = 0.45 * (1 - ((t * 0.6) % 1)); }
+    if (o.userData.balloon) o.position.y = 3.1 + Math.sin(t * 2) * 0.1;
+  });
+}
+
+export function buildCharacter(look, i = 0) {
   const g = new THREE.Group();
   const skin = mat(SKIN[i % SKIN.length]);
   let height = 1;
@@ -284,7 +307,7 @@ function buildCharacter(look, i) {
   extras.forEach((m) => g.add(m));
 
   g.scale.setScalar(height);
-  g.userData = { legs, arms };
+  g.userData = { legs, arms, look };
   return g;
 }
 
@@ -308,8 +331,8 @@ export function buildCityLife(scene, world) {
     stalls.push({ id: `stall-${i}`, food, x, z, group });
   });
 
-  // Characters
-  const people = CHARACTERS.map((c, i) => {
+  // The characters are now playable (picked in the menu), so none wander the streets.
+  const people = [].map((c, i) => {
     const group = buildCharacter(c.look, i);
     const name = CHARACTER_NAMES[i];
     if (name) {

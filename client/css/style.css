@@ -52,6 +52,10 @@ input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px soli
 .panel button.primary { background: var(--red); border-color: var(--gold); font-weight: 800; font-size: 17px; }
 .panel button:disabled { opacity: .45; cursor: not-allowed; }
 .panel button.link { background: none; border: none; opacity: .75; text-decoration: underline; }
+.chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chars button { padding: 8px 4px !important; font-size: 12px; line-height: 1.2; }
+.chars button .ico { display: block; font-size: 22px; }
+.chars button.on { background: var(--gold) !important; color: #2a1404 !important; font-weight: 700; }
 .choice { display: flex; gap: 8px; }
 .choice button { flex: 1; }
 .choice button.on { background: var(--gold); color: #2a1404; font-weight: 700; }

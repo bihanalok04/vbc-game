@@ -1,6 +1,7 @@
 // The other players in the room: a coloured avatar with a name tag each,
 // moved smoothly toward the positions in the server's state:snapshot messages.
 import * as THREE from 'three';
+import { buildCharacter, animateCharacter } from './cityLife.js';
 
 function nameTag(name, color) {
   const canvas = document.createElement('canvas');
@@ -31,12 +32,10 @@ export function createRemotePlayers(scene) {
   function add(p) {
     if (avatars.has(p.id)) return;
     const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: p.color || '#ff66aa' });
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.6, 1.0, 4, 8), mat);
-    body.position.y = 1.1;
-    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.5), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-    nose.position.set(0, 1.5, 0.6);
-    group.add(body, nose, nameTag(p.name || 'Player', p.color || '#ffffff'));
+    // their chosen playable character, with a name tag in their player colour
+    const model = buildCharacter(p.character || 'motaBabu');
+    group.add(model, nameTag(p.name || 'Player', p.color || '#ffffff'));
+    group.userData.model = model;
     group.position.set(p.x || 0, 0, p.z || 0);
     scene.add(group);
     avatars.set(p.id, { group, target: { x: p.x || 0, z: p.z || 0, rotY: 0 } });
@@ -73,7 +72,10 @@ export function createRemotePlayers(scene) {
 
   function update(dt) {
     const k = Math.min(1, dt * 10);
+    const t = performance.now() / 1000;
     for (const { group, target } of avatars.values()) {
+      const moving = Math.hypot(target.x - group.position.x, target.z - group.position.z) > 0.05;
+      if (group.userData.model) animateCharacter(group.userData.model, moving, t);
       group.position.x += (target.x - group.position.x) * k;
       group.position.z += (target.z - group.position.z) * k;
       let diff = target.rotY - group.rotation.y;

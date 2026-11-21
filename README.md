@@ -43,7 +43,7 @@ Built at Vibe Coders Hackathon Edition 3, Kolkata.
   - tanpura background music and the shankh (conch shell)
 - **Works on phones:** touch joystick (the camera follows where you steer), sprint and jump buttons, a layout for small screens, and lighter graphics for phones.
 - **Kolkata street food:** phuchka, kathi roll, jhalmuri, bhaar chai, rosogolla, ghugni and mishti doi stalls. Eat at one for an 8-second stamina surge.
-- **8 Bengali characters** in the streets: a mota babu with his umbrella, a teen in a new Puja kurta taking selfies, a mashima in a laal-paar saree, a purohit with a smoking dhunuchi, a phuchkawala, a jhalmuriwala with his tin box, a College Street student with a jhola, and a kid with a balloon.
+- **Play as one of 8 Bengali characters** (pick in the menu; other players see your character): a mota babu with his umbrella, a teen in a new Puja kurta taking selfies, a mashima in a laal-paar saree, a purohit with a smoking dhunuchi, a phuchkawala, a jhalmuriwala with his tin box, a College Street student with a jhola, and a kid with a balloon.
 - **North-Kolkata lanes:** weathered orange and ochre walls, green-shuttered balconies, sagging overhead wires, parked motorbikes, coconut palms on the ghat.
 
 ## Tech stack
