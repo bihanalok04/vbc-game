@@ -355,6 +355,9 @@ function buildCrowd(scene, world, data) {
     const woman = rand() < 0.5;
     return {
       x, z, woman,
+      hx: x, hz: z, tx: x, tz: z, // home spot and current walking target
+      spd: 0.7 + rand() * 0.8,
+      wait: rand() * 3,
       rot: rand() * Math.PI * 2,
       s: 0.85 + rand() * 0.25,
       lower: woman ? SAREES[Math.floor(rand() * SAREES.length)] : LOWERS[Math.floor(rand() * LOWERS.length)],
@@ -380,10 +383,60 @@ function buildCrowd(scene, world, data) {
     upperMesh.setColorAt(i, col.setHex(p.upper));
   });
 
-  function place(t) {
+  const BODY = 0.38; // how wide a person is, for bumping into them
+  let playerX = 1e9;
+  let playerZ = 1e9;
+
+  // Each person strolls to random spots near their home, pauses, then moves on.
+  function walk(dt) {
+    for (const p of people) {
+      if (p.wait > 0) { p.wait -= dt; p.moving = false; continue; }
+      const dx = p.tx - p.x;
+      const dz = p.tz - p.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.2) {
+        const a = rand() * Math.PI * 2;
+        const r = rand() * 5;
+        p.tx = p.hx + Math.cos(a) * r;
+        p.tz = p.hz + Math.sin(a) * r;
+        p.wait = 0.5 + rand() * 3;
+        continue;
+      }
+      const step = Math.min(d, p.spd * dt);
+      const nx = p.x + (dx / d) * step;
+      const nz = p.z + (dz / d) * step;
+      // don't walk through buildings or into the player
+      if (!free(nx, nz) || Math.hypot(nx - playerX, nz - playerZ) < 1.3) {
+        p.tx = p.x; p.tz = p.z; p.wait = 0.4 + rand();
+        p.moving = false;
+        continue;
+      }
+      p.x = nx;
+      p.z = nz;
+      p.rot = Math.atan2(dx, dz);
+      p.moving = true;
+    }
+  }
+
+  // Is (x, z) bumping into someone? Moving away from a person is always allowed,
+  // so you can never get stuck inside the crowd.
+  function blocks(x, z, r, fromX, fromZ) {
+    const lim = (BODY + r) ** 2;
+    for (const p of people) {
+      const dNew = (p.x - x) ** 2 + (p.z - z) ** 2;
+      if (dNew >= lim) continue;
+      if (fromX === undefined) return true;
+      const dOld = (p.x - fromX) ** 2 + (p.z - fromZ) ** 2;
+      if (dNew < dOld) return true;
+    }
+    return false;
+  }
+
+  function place(t, dt = 0) {
+    if (dt > 0) walk(dt);
     people.forEach((p, i) => {
-      const sway = Math.sin(t * 1.6 + p.phase) * 0.04;
-      const bob = Math.abs(Math.sin(t * 2.2 + p.phase)) * 0.04;
+      const sway = Math.sin(t * (p.moving ? 7 : 1.6) + p.phase) * (p.moving ? 0.08 : 0.04);
+      const bob = Math.abs(Math.sin(t * (p.moving ? 7 : 2.2) + p.phase)) * (p.moving ? 0.08 : 0.04);
       q.setFromEuler(e.set(0, p.rot + sway * 3, sway));
       sc.set(p.s, p.s, p.s);
       m.compose(v.set(p.x, (0.5 + bob) * p.s, p.z), q, sc);
@@ -399,7 +452,12 @@ function buildCrowd(scene, world, data) {
   }
   [lowerMesh, upperMesh, headMesh, hairMesh].forEach((mesh) => { mesh.count = people.length; scene.add(mesh); });
   place(0);
-  return { count: people.length, update: place };
+  return {
+    count: people.length,
+    update: place,
+    blocks,
+    setPlayer(x, z) { playerX = x; playerZ = z; },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -557,6 +615,8 @@ export function buildCityLife(scene, world, data = {}) {
 
   // Puja crowds and Bengali decorations
   const crowd = buildCrowd(scene, world, data);
+  // let the player bump into the crowd (player.js checks this)
+  world.blockedByCrowd = (x, z, r, fromX, fromZ) => crowd.blocks(x, z, r, fromX, fromZ);
   buildBengaliTouches(scene, world, data);
 
   // The characters are now playable (picked in the menu), so none wander the streets.
@@ -579,7 +639,7 @@ export function buildCityLife(scene, world, data = {}) {
   let crowdTick = 0;
   function update(dt) {
     t += dt;
-    if (++crowdTick % 2 === 0) crowd.update(t); // gentle sway, every other frame to save phones
+    if (++crowdTick % 2 === 0) crowd.update(t, dt * 2); // walk + sway, every other frame to save phones
     for (const p of people) {
       const { group } = p;
       // walk in a slow loop around their spot; the dhaki and purohit mostly stay put
@@ -617,5 +677,5 @@ export function buildCityLife(scene, world, data = {}) {
     return best;
   }
 
-  return { stalls, nearestStall, update, crowdCount: crowd.count };
+  return { stalls, nearestStall, update, crowdCount: crowd.count, setPlayer: crowd.setPlayer };
 }
