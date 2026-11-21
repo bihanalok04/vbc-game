@@ -30,6 +30,12 @@ button { font: inherit; cursor: pointer; }
   100% { transform: scale(1.4) rotate(0deg); opacity: 0; }
 }
 @keyframes ghee-shine { to { background-position: 300% 0; } }
+#ghee-out::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, transparent 35%, rgba(193,18,31,.55) 100%); animation: ghee-flash 1.5s ease-out forwards; }
+@keyframes ghee-flash { 0% { opacity: 0; } 10% { opacity: 1; } 30% { opacity: .5; } 45% { opacity: .9; } 100% { opacity: 0; } }
+body.shake #game { animation: shake .5s linear 2; }
+@keyframes shake { 0%,100% { transform: none; } 10% { transform: translate(-12px, 6px) rotate(-1deg); } 30% { transform: translate(10px, -8px) rotate(1deg); } 50% { transform: translate(-8px, -6px); } 70% { transform: translate(8px, 8px) rotate(-.5deg); } 90% { transform: translate(-4px, 2px); } }
+.ghee-drop { position: fixed; top: -60px; font-size: 42px; pointer-events: none; z-index: 21; animation: ghee-fall 1.5s cubic-bezier(.3,.1,.7,1) forwards; }
+@keyframes ghee-fall { to { transform: translateY(110vh) rotate(540deg); opacity: .2; } }
 #stamina { width: 140px; height: 8px; margin-top: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; }
 #stamina-fill { height: 100%; width: 100%; background: var(--gold); transition: width 0.1s linear; }
 #compass { text-align: center; text-shadow: 0 2px 4px #000; }

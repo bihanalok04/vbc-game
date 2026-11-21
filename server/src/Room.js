@@ -14,7 +14,7 @@ const { SOUND_MAP } = require('./soundMap');
 const { timeOfDay } = require('./dayCycle');
 
 // Playable characters (must match client/js/cityLife.js)
-const CHARACTER_LOOKS = ['motaBabu', 'teen', 'mashima', 'purohit', 'phuchkawala', 'jhalmuriwala', 'student', 'kid'];
+const CHARACTER_LOOKS = ['phuchkawala', 'purohit', 'motaBabu', 'teen', 'mashima', 'purohitBell', 'student', 'kid'];
 
 function validDurationSec(sec) {
   const n = Number(sec);

@@ -8,7 +8,8 @@ import { createPlayer } from './player.js';
 import { createRemotePlayers } from './remotePlayers.js';
 import { setupTouchControls } from './touch.js';
 import { PandalAudio } from './audio.js';
-import { buildCityLife, buildCharacter, animateCharacter, PLAYABLE } from './cityLife.js';
+import { buildCityLife } from './cityLife.js';
+import { buildCharacter, animateCharacter, PLAYABLE } from './characters.js';
 
 // ---------- renderer, scene, lights ----------
 const canvas = document.getElementById('game');
@@ -90,7 +91,7 @@ player.setAutoCamera?.(touch.isTouch); // on phones the camera follows the joyst
 const stallCooldown = new Map(); // stall id -> time you can eat there again
 
 // ---------- playable character ----------
-const ICONS = { motaBabu: '🧔🏽', teen: '🤳🏽', mashima: '👩🏽‍🦳', purohit: '🙏🏽', phuchkawala: '🥟', jhalmuriwala: '🥜', student: '🎓', kid: '🎈' };
+const ICONS = { motaBabu: '🧔🏽', teen: '🤳🏽', mashima: '👩🏽‍🦳', purohit: '🙏🏽', phuchkawala: '🥟', purohitBell: '🔔', student: '🎓', kid: '🎈' };
 let myCharacter = 'motaBabu';
 try { myCharacter = localStorage.getItem('pd-char') || myCharacter; } catch {}
 let myModel = null;
@@ -569,14 +570,28 @@ function gheeKhatam() {
   void el.offsetWidth;
   el.classList.remove('hidden');
   clearTimeout(gheeTimer);
-  gheeTimer = setTimeout(() => el.classList.add('hidden'), 1500);
+  gheeTimer = setTimeout(() => { el.classList.add('hidden'); document.body.classList.remove('shake'); }, 1500);
+  // screen shake + butter raining down
+  document.body.classList.remove('shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('shake');
+  for (let i = 0; i < 14; i++) {
+    const d = document.createElement('div');
+    d.className = 'ghee-drop';
+    d.textContent = '🧈';
+    d.style.left = `${Math.random() * 95}vw`;
+    d.style.animationDelay = `${Math.random() * 0.4}s`;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 2100);
+  }
+  audio.playSfx('gheeOut'); // loud comic "wah wah wah waaah"
   try {
-    // dramatic, high-pitched, over-the-top voice
-    const say = new SpeechSynthesisUtterance('Ghee khatam!');
+    // dramatic, high-pitched, over-the-top voice at full volume
+    const say = new SpeechSynthesisUtterance('Ghee khataaaam!');
     const voices = speechSynthesis.getVoices();
     say.voice = voices.find((v) => /hi-IN|bn-IN|en-IN/i.test(v.lang)) || null;
-    say.pitch = 1.9;
-    say.rate = 0.85;
+    say.pitch = 2;
+    say.rate = 0.8;
     say.volume = 1;
     speechSynthesis.cancel();
     speechSynthesis.speak(say);

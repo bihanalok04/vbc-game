@@ -246,6 +246,28 @@ function chimeSound(ctx, first) {
   });
 }
 
+// "Ghee khatam!" sting: a loud, comic sad-trombone "wah wah wah waaah" with a drum hit.
+function gheeOutSound(ctx) {
+  const notes = [[0, 0.28, 311], [0.3, 0.28, 293], [0.6, 0.28, 277], [0.9, 1.0, 261]];
+  return makeBuffer(ctx, 2.0, (data, sr, len) => {
+    addDrum(data, sr, len, 0, { f0: 160, f1: 55, decay: 0.25, slap: 0.5, gain: 1.2, wrap: false });
+    for (const [start, dur, f] of notes) {
+      const s0 = Math.floor(start * sr);
+      let phase = 0;
+      for (let i = 0; i < dur * sr && s0 + i < len; i++) {
+        const t = i / sr;
+        const last = dur > 0.5;
+        const freq = f * (1 + (last ? 0.03 * Math.sin(2 * Math.PI * 6 * t) : 0)) * (last ? 1 - 0.04 * t : 1);
+        phase += (2 * Math.PI * freq) / sr;
+        let s = 0;
+        for (let h = 1; h <= 8; h++) s += Math.sin(phase * h) / h; // brassy sawtooth
+        const env = Math.min(1, t / 0.03) * Math.min(1, (dur - t) / 0.08);
+        data[s0 + i] += Math.tanh(s * 1.4) * env * 0.9;
+      }
+    }
+  });
+}
+
 function beepSound(ctx, freq) {
   return makeBuffer(ctx, 0.18, (data, sr, len) => {
     for (let i = 0; i < len; i++) {
@@ -418,6 +440,7 @@ export class PandalAudio {
       first: chimeSound(ctx, true),
       beep: beepSound(ctx, 660),
       beepHigh: beepSound(ctx, 990),
+      gheeOut: gheeOutSound(ctx),
     };
 
     // No synthesized background drone any more (it buzzed). The real dhak at the
@@ -679,12 +702,19 @@ export class PandalAudio {
   playSfx(name) {
     if (!this.started) return;
     const b = this.buffers;
-    const map = { discover: b.discover, first: b.first, countdown: b.beep, go: b.shankh, shankh: b.shankh, end: b.shankhLong };
+    const map = { discover: b.discover, first: b.first, countdown: b.beep, go: b.shankh, shankh: b.shankh, end: b.shankhLong, gheeOut: b.gheeOut };
     const buffer = map[name];
     if (!buffer) return;
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
-    src.connect(this.sfxBus);
+    if (name === 'gheeOut') {
+      // extra loud, straight to the master (skips the quieter effects channel)
+      const boost = this.ctx.createGain();
+      boost.gain.value = 1.6;
+      src.connect(boost).connect(this.master);
+    } else {
+      src.connect(this.sfxBus);
+    }
     src.start();
     if (name === 'go') this.oneShotFlat(b.beepHigh);
   }
