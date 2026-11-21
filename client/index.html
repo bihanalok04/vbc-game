@@ -34,6 +34,24 @@
   <div id="big-count" class="hidden"></div>
   <div id="ghee-out" class="hidden"><span>GHEE KHATAM!</span></div>
 
+  <!-- In-game buttons: settings and back-to-road -->
+  <button id="settings-btn" class="round-btn hidden" aria-label="Settings">⚙</button>
+  <button id="recenter-btn" class="hidden">🎯 Back to road</button>
+
+  <!-- Settings -->
+  <section id="settings" class="screen hidden">
+    <div class="panel">
+      <h2>Settings</h2>
+      <label class="slider">Master volume <input id="vol-master" type="range" min="0" max="100" value="80"></label>
+      <label class="slider">Music <input id="vol-music" type="range" min="0" max="100" value="70"></label>
+      <label class="slider">Effects <input id="vol-sfx" type="range" min="0" max="100" value="90"></label>
+      <label class="slider">City sounds <input id="vol-ambience" type="range" min="0" max="100" value="80"></label>
+      <label class="check"><input id="mute" type="checkbox"> Mute all sound</label>
+      <button id="settings-close" class="primary">Resume</button>
+      <button id="leave-round-btn" class="danger">Leave round</button>
+    </div>
+  </section>
+
   <!-- Phone controls -->
   <div id="touch" class="hidden">
     <div id="stick"><div id="stick-knob"></div></div>
@@ -53,10 +71,16 @@
       <div id="time-choice" class="choice">
         <button data-sec="120">2:00</button><button data-sec="150" class="on">2:30</button><button data-sec="180">3:00</button>
       </div>
-      <button id="solo-btn" class="primary">Play solo</button>
-      <div class="split">
-        <button id="create-btn">Create room</button>
+      <div id="mode-choice" class="modes">
+        <button id="solo-btn" class="primary">🏃 Play solo</button>
+        <button id="friends-btn" class="primary friends">👫 Play with friends</button>
+      </div>
+      <div id="friends-box" class="hidden">
+        <div class="label">Play with friends (2–8 players)</div>
+        <button id="create-btn" class="primary">Create a room</button>
+        <div class="label">…or join a friend's room</div>
         <div class="join"><input id="code" maxlength="5" placeholder="CODE" autocapitalize="characters"><button id="join-btn">Join</button></div>
+        <button id="back-btn" class="link">← Back</button>
       </div>
       <p class="help">Find pandals before time runs out. Regular pandal +3, hidden ghetto pandal +5, first to find it +2.<br>
         Eat at street-food stalls (phuchka, kathi roll, jhalmuri…) for a stamina surge.<br>

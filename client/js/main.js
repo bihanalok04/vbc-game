@@ -122,7 +122,14 @@ function showScreen(name) {
   for (const s of screens) $(s).classList.toggle('hidden', s !== name);
   const inGame = name === null;
   $('hud').classList.toggle('hidden', !inGame);
+  $('settings-btn').classList.toggle('hidden', !inGame);
+  if (!inGame) { $('recenter-btn').classList.add('hidden'); $('settings').classList.add('hidden'); }
+  if (name === 'menu') showModeChoice();
   if (inGame) touch.show(); else touch.hide();
+}
+function showModeChoice() {
+  $('mode-choice').classList.remove('hidden');
+  $('friends-box').classList.add('hidden');
 }
 function toast(text, big = false) {
   const el = document.createElement('div');
@@ -180,7 +187,7 @@ socket.on('disconnect', () => {
 });
 
 function startAudio() {
-  audio.start().catch(() => {}); // must run inside a click/tap
+  audio.start().then(applySettings).catch(() => {}); // must run inside a click/tap
 }
 
 // ---------- menu ----------
@@ -435,6 +442,80 @@ socket.on('game:ended', ({ leaderboard, winner, reason }) => {
   }, 1800);
 });
 
+// ---------- start screen: solo or with friends ----------
+$('friends-btn').onclick = () => {
+  $('mode-choice').classList.add('hidden');
+  $('friends-box').classList.remove('hidden');
+  $('menu-status').textContent = '';
+};
+$('back-btn').onclick = () => { showModeChoice(); $('menu-status').textContent = ''; };
+
+// ---------- settings: volume, mute, leave round ----------
+const SETTINGS_KEY = 'pd-settings';
+const settings = { master: 80, music: 70, sfx: 90, ambience: 80, muted: false };
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch {}
+const sliders = { master: $('vol-master'), music: $('vol-music'), sfx: $('vol-sfx'), ambience: $('vol-ambience') };
+for (const [k, el] of Object.entries(sliders)) el.value = settings[k];
+$('mute').checked = settings.muted;
+
+function applySettings() {
+  audio.setVolume({
+    master: settings.master / 100,
+    music: settings.music / 100,
+    sfx: settings.sfx / 100,
+    ambience: settings.ambience / 100,
+  });
+  audio.setMuted(settings.muted);
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
+}
+for (const [k, el] of Object.entries(sliders)) {
+  el.addEventListener('input', () => { settings[k] = Number(el.value); applySettings(); });
+}
+$('mute').addEventListener('change', () => { settings.muted = $('mute').checked; applySettings(); });
+
+function openSettings() {
+  $('settings').classList.remove('hidden');
+  player.setEnabled(false); // the round keeps running on the server
+  touch.hide();
+}
+function closeSettings() {
+  $('settings').classList.add('hidden');
+  if (state.phase === 'playing') { player.setEnabled(true); touch.show(); }
+}
+$('settings-btn').onclick = openSettings;
+$('settings-close').onclick = closeSettings;
+$('leave-round-btn').onclick = () => {
+  if (!confirm('Leave this round? Your score will be lost.')) return;
+  $('settings').classList.add('hidden');
+  leaveRoom();
+};
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || (state.phase !== 'playing' && state.phase !== 'countdown')) return;
+  if ($('settings').classList.contains('hidden')) openSettings(); else closeSettings();
+});
+
+// ---------- back to the road ----------
+const ROAD_HALF_WIDTH = 5; // roads are 10 units wide (world.js)
+const roadList = mapData.roads || [];
+function distanceToRoad(x, z) {
+  let best = Infinity;
+  for (const r of roadList) {
+    const vx = r.x2 - r.x1;
+    const vz = r.z2 - r.z1;
+    const t = Math.max(0, Math.min(1, ((x - r.x1) * vx + (z - r.z1) * vz) / (vx * vx + vz * vz || 1)));
+    best = Math.min(best, Math.hypot(x - (r.x1 + vx * t), z - (r.z1 + vz * t)));
+  }
+  return best;
+}
+$('recenter-btn').onclick = () => {
+  // The server moves us to the nearest road point (so the anti-cheat check agrees).
+  socket.emit('player:recenter', {}, (res) => {
+    if (!res?.ok) { toast(res?.error || 'Could not move you back.'); return; }
+    player.setPosition(res.x, res.z);
+    $('recenter-btn').classList.add('hidden');
+  });
+};
+
 // ---------- per-frame game logic ----------
 const camDir = new THREE.Vector3();
 let lastSend = 0;
@@ -546,6 +627,8 @@ renderer.setAnimationLoop(() => {
       lastCheck = now;
       checkDiscoveries();
       updateCompass(yaw);
+      // Off the road (footpath, lanes, pandal grounds): offer a way back.
+      $('recenter-btn').classList.toggle('hidden', distanceToRoad(s.x, s.z) <= ROAD_HALF_WIDTH + 0.5);
     }
   }
   renderer.render(scene, camera);

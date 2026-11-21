@@ -105,3 +105,24 @@ input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px soli
 @keyframes spin { to { transform: rotate(360deg); } }
 .status:not(.error) { color: #ffe8a3; }
 button:disabled { opacity: .5; cursor: wait; }
+
+/* Start screen: solo or with friends */
+.modes { display: flex; flex-direction: column; gap: 10px; }
+.modes .primary { font-size: 19px; padding: 14px; }
+.panel button.primary.friends { background: #2a6f97; }
+#friends-box { display: flex; flex-direction: column; gap: 10px; }
+#friends-box.hidden { display: none; }
+
+/* In-game buttons */
+.round-btn { position: fixed; left: 12px; top: 46%; z-index: 8; width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(0,0,0,.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+#recenter-btn { position: fixed; left: 50%; top: 128px; transform: translateX(-50%); z-index: 8; padding: 10px 16px; border-radius: 999px; border: 2px solid #fff; background: #2a9d8f; color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.5); animation: pop .25s ease-out; }
+@keyframes pop { from { transform: translateX(-50%) scale(.6); opacity: 0; } }
+
+/* Settings */
+#settings { z-index: 30; }
+.slider { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.slider input { width: 100%; accent-color: var(--gold); }
+.check { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.check input { width: 20px; height: 20px; accent-color: var(--gold); }
+.panel button.danger { background: transparent; border: 2px solid #e63946; color: #ffb4a2; font-weight: 700; }
+.panel label.check { flex-direction: row; justify-content: flex-start; }

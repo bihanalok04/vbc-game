@@ -130,6 +130,13 @@ io.on('connection', (socket) => {
     rooms.roomOf(socket.id)?.handleMove(socket, data);
   });
 
+  // "Back to road" button: the server moves the player to the nearest point on a road.
+  socket.on('player:recenter', (_data, cb) => {
+    const room = rooms.roomOf(socket.id);
+    if (!room) return reply(cb, { ok: false, error: 'You are not in a room.' });
+    reply(cb, room.recenter(socket.id));
+  });
+
   socket.on('pandal:discover', (data, cb) => {
     const room = rooms.roomOf(socket.id);
     if (!room) return reply(cb, { ok: false, error: 'You are not in a room.' });
