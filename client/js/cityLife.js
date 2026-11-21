@@ -35,11 +35,11 @@ const FOOD_COLORS = {
 // The 8 characters: look + where they hang around.
 const CHARACTERS = [
   { look: 'motaBabu', home: [10, 8], roam: 9 }, // big-bellied babu in dhoti-panjabi
-  { look: 'dhaki', home: [60, -18], roam: 4 }, // drummer near Santosh Mitra Square
+  { look: 'teen', home: [60, -18], roam: 5 }, // teen in a new Puja kurta, taking selfies near Santosh Mitra Square
   { look: 'mashima', home: [-112, -98], roam: 8 }, // aunty in red-bordered white saree
   { look: 'purohit', home: [40, 82], roam: 4 }, // priest near Deshapriya Park
   { look: 'phuchkawala', home: [42, -8.8], roam: 1.5 }, // at the phuchka stall on the east-west road
-  { look: 'police', home: [0, -80], roam: 6 }, // Kolkata traffic police in white
+  { look: 'jhalmuriwala', home: [-66, -90], roam: 6 }, // jhalmuri seller with a tin box round his neck
   { look: 'student', home: [-40, -48], roam: 10 }, // College Street student with jhola
   { look: 'kid', home: [-20, 108], roam: 7 }, // kid with a balloon
 ];
@@ -142,16 +142,16 @@ function buildCharacter(look, i) {
   switch (look) {
     case 'motaBabu':
       belly = 0.55; top = 0xfdfdf8; bottom = 0xfffdf5; break;
-    case 'dhaki':
-      top = 0xfdfdf8; bottom = 0xfffdf5; break;
+    case 'teen':
+      top = 0xd00070; bottom = 0x1d3557; skirt = false; break; // bright new Puja kurta + jeans
     case 'mashima':
       top = 0xfbf7ee; bottom = 0xfbf7ee; break;
     case 'purohit':
       top = 0xe85d04; bottom = 0xf48c06; break;
     case 'phuchkawala':
       top = 0xe9edc9; bottom = 0x6c757d; break;
-    case 'police':
-      top = 0xffffff; bottom = 0xffffff; skirt = false; break;
+    case 'jhalmuriwala':
+      top = 0xf1f1e6; bottom = 0x2a6f97; break; // vest + checked lungi
     case 'student':
       top = 0x3a86ff; bottom = 0x1d3557; skirt = false; break;
     case 'kid':
@@ -194,7 +194,7 @@ function buildCharacter(look, i) {
   }
   const arms = [];
   for (const side of [-1, 1]) {
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.8, 6), look === 'police' || look === 'student' ? mat(top) : skin);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.8, 6), look === 'teen' || look === 'student' ? mat(top) : skin);
     arm.geometry.translate(0, -0.4, 0);
     arm.position.set(side * (0.42 + belly * 0.35), 1.85, 0);
     arm.rotation.z = side * (0.15 + belly * 0.2);
@@ -222,14 +222,30 @@ function buildCharacter(look, i) {
     smoke.position.set(0.55, 1.6, 0.3);
     smoke.userData.smoke = true;
     extras.push(tiki, dhunuchi, smoke);
-  } else if (look === 'police') {
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.14, 12), mat(0xffffff));
-    cap.position.y = 2.38;
-    const peak = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.2), mat(0x111111));
-    peak.position.set(0, 2.32, 0.28);
-    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.08, 10), mat(0x5c3d1e));
-    belt.position.y = 1.05;
-    extras.push(cap, peak, belt);
+  } else if (look === 'jhalmuriwala') {
+    // tin jhalmuri box hung at the chest, with a cone of muri on top
+    const box = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.45, 12), new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.35 }));
+    box.position.set(0, 1.35, 0.55);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 8), mat(0xf4e1b5));
+    cone.rotation.x = Math.PI;
+    cone.position.set(0.15, 1.75, 0.55);
+    const strap = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.03, 4, 16, Math.PI), mat(0x5c3d1e));
+    strap.position.set(0, 1.55, 0.25);
+    const gamchha = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.07, 6, 12), mat(0xd62828));
+    gamchha.rotation.x = Math.PI / 2;
+    gamchha.position.y = 2.33; // gamchha tied round the head
+    extras.push(box, cone, strap, gamchha);
+  } else if (look === 'teen') {
+    // phone held up for a selfie, stylish hair
+    const phone = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.3, 0.03), mat(0x111111));
+    phone.position.set(0.5, 2.35, 0.45);
+    phone.rotation.y = Math.PI;
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.29, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x1a0f08));
+    hair.position.y = 2.2;
+    hair.scale.y = 1.3;
+    const stole = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.12), mat(0xffbe0b));
+    stole.position.set(0, 1.9, 0.3);
+    extras.push(phone, hair, stole);
   } else if (look === 'student') {
     const hair = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x111111));
     hair.position.y = 2.17;
@@ -238,17 +254,6 @@ function buildCharacter(look, i) {
     const jhola = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.45), mat(0xc9a227));
     jhola.position.set(-0.45, 1.2, 0);
     extras.push(hair, glasses, jhola);
-  } else if (look === 'dhaki') {
-    // the dhak: a big barrel drum hung at the waist, with a kash-flower plume
-    const dhak = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.1, 14), mat(0x8b2e16));
-    dhak.rotation.z = Math.PI / 2;
-    dhak.position.set(0, 1.2, 0.55);
-    const plume = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.9, 8), mat(0xfffbea));
-    plume.position.set(0.55, 2.0, 0.55);
-    plume.rotation.z = -0.4;
-    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x111111));
-    hair.position.y = 2.17;
-    extras.push(dhak, plume, hair);
   } else if (look === 'kid') {
     const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.4, 4), mat(0xffffff));
     string.position.set(0.45, 2.3, 0);
@@ -335,9 +340,10 @@ export function buildCityLife(scene, world) {
       if (moving) group.rotation.y = Math.atan2(dx, dz);
       const swing = moving ? Math.sin(t * 8 + p.phase) * 0.5 : 0;
       group.userData.legs.forEach((leg, k) => (leg.rotation.x = k ? swing : -swing));
-      if (p.look === 'dhaki') {
-        // drumming arms
-        group.userData.arms.forEach((arm, k) => (arm.rotation.x = -1.1 + Math.sin(t * 14 + k * Math.PI) * 0.4));
+      if (p.look === 'teen') {
+        // right arm held up for a selfie, left arm swings
+        group.userData.arms[1].rotation.x = -2.3;
+        group.userData.arms[0].rotation.x = swing * 0.6;
       } else {
         group.userData.arms.forEach((arm, k) => (arm.rotation.x = k ? -swing * 0.6 : swing * 0.6));
       }
