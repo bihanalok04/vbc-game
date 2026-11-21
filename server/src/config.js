@@ -1,4 +1,4 @@
-// All game tuning numbers live here so the whole team can find and change them.
+﻿// All game tuning numbers live here so the whole team can find and change them.
 
 module.exports = {
   PORT: Number(process.env.PORT) || 3000,
@@ -36,8 +36,8 @@ module.exports = {
 
   // Movement limits, used to reject obviously impossible movement.
   // Keep these in sync with the frontend's movement code (Member 2).
-  WALK_SPEED: 6,
-  SPRINT_SPEED: 11,
+  WALK_SPEED: 8,
+  SPRINT_SPEED: 14,
   SPEED_TOLERANCE: 1.6, // allow some slack for lag and frame-rate jitter
   WORLD_HALF_SIZE: 160, // the city spans -160..160 on X and Z
 
