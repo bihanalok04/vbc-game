@@ -50,6 +50,35 @@ function seededRandom(seed) {
   };
 }
 
+// Pandal wall colliders in the pandal's local frame (+Z = open entrance), as [minX, maxX, minZ, maxZ].
+const REGULAR_WALLS = [
+  [-7.4, 7.4, -6.4, -5.6], // back wall
+  [-7.4, -6.6, -6.4, 6], // left wall
+  [6.6, 7.4, -6.4, 6], // right wall
+  [-2.5, 2.5, -5.6, -2.75], // idol pedestal
+];
+const GHETTO_WALLS = [
+  [-3, 3, -2.5, -1.7], // back cloth
+  [-3, -2.4, -2.5, 1.2], // left side
+  [2.4, 3, -2.5, 1.2], // right side
+];
+
+// Rotate a local box by the pandal's facing (snapped to 90°, roads are axis-aligned) into a world AABB.
+function rotateBox([minX, maxX, minZ, maxZ], rotY, px, pz) {
+  const a = Math.round(rotY / (Math.PI / 2)) * (Math.PI / 2);
+  const c = Math.round(Math.cos(a));
+  const s = Math.round(Math.sin(a));
+  const xs = [];
+  const zs = [];
+  for (const x of [minX, maxX]) {
+    for (const z of [minZ, maxZ]) {
+      xs.push(px + x * c + z * s);
+      zs.push(pz - x * s + z * c);
+    }
+  }
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) };
+}
+
 function distToSegment(px, pz, r) {
   const vx = r.x2 - r.x1;
   const vz = r.z2 - r.z1;
@@ -515,10 +544,15 @@ export function buildWorld(scene, data = {}) {
       const d = Math.hypot(p.x - px, p.z - pz);
       if (!best || d < best.d) best = { d, px, pz };
     }
-    if (best && best.d > 0.5) group.rotation.y = Math.atan2(best.px - p.x, best.pz - p.z);
+    // Snap to 90° so the model lines up with its wall colliders and the grid of roads.
+    if (best && best.d > 0.5) group.rotation.y = Math.round(Math.atan2(best.px - p.x, best.pz - p.z) / (Math.PI / 2)) * (Math.PI / 2);
     group.position.set(p.x, 0, p.z);
     scene.add(group);
     pandals.set(p.id, { data: p, group, beacon: group.userData.beacon });
+    // Solid back and side walls so players can only walk in through the entrance (+Z).
+    for (const box of p.type === 'ghetto' ? GHETTO_WALLS : REGULAR_WALLS) {
+      colliders.push(rotateBox(box, group.rotation.y, p.x, p.z));
+    }
   }
 
   // ---------- day / night ----------
