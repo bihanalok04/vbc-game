@@ -132,3 +132,22 @@ button:disabled { opacity: .5; cursor: wait; }
 .check input { width: 20px; height: 20px; accent-color: var(--gold); }
 .panel button.danger { background: transparent; border: 2px solid #e63946; color: #ffb4a2; font-weight: 700; }
 .panel label.check { flex-direction: row; justify-content: flex-start; }
+
+/* ---------- Rounder, softer interface (added last so it wins) ---------- */
+html, body, button, input { font-family: 'Baloo Da 2', system-ui, sans-serif; }
+.panel { border-radius: 28px !important; padding: 24px !important; box-shadow: 0 14px 44px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06); }
+.panel button, #recenter-btn { border-radius: 999px !important; transition: transform .12s ease, background .2s ease; }
+.panel button:active, .round-btn:active { transform: scale(.96); }
+.panel button.primary { box-shadow: 0 6px 0 #6a040f, 0 10px 18px rgba(0,0,0,.35); }
+.panel button.primary:active { box-shadow: 0 2px 0 #6a040f; transform: translateY(3px); }
+input { border-radius: 999px !important; padding-left: 16px !important; }
+.chars button { border-radius: 18px !important; }
+.chars button .ico { font-size: 26px; }
+#lobby-players li, #final-board li { border-radius: 16px !important; }
+#leaderboard { border-radius: 18px !important; padding: 10px 14px !important; backdrop-filter: blur(6px); }
+.hud-left { background: rgba(0,0,0,.35); border-radius: 22px; padding: 8px 14px 10px; backdrop-filter: blur(6px); }
+#stamina { height: 12px !important; border-radius: 999px !important; border: 1px solid rgba(255,224,138,.5); }
+#stamina-fill { border-radius: 999px; background: linear-gradient(90deg, #ffd166, #ffb703); }
+#banner { border-radius: 22px !important; }
+.toast { border-radius: 999px !important; padding: 8px 18px !important; }
+#compass-arrow { filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }

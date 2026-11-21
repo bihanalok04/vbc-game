@@ -91,7 +91,7 @@ player.setAutoCamera?.(touch.isTouch); // on phones the camera follows the joyst
 const stallCooldown = new Map(); // stall id -> time you can eat there again
 
 // ---------- playable character ----------
-const ICONS = { motaBabu: '🧔🏽', teen: '🤳🏽', mashima: '👩🏽‍🦳', purohit: '🙏🏽', phuchkawala: '🥟', purohitBell: '🔔', student: '🎓', kid: '🎈' };
+const ICONS = { motaBabu: '🫃🏽', teen: '📸', mashima: '🥻', purohit: '🪔', phuchkawala: '🧆', purohitBell: '🛕', student: '📚', kid: '🪁' };
 let myCharacter = 'motaBabu';
 try { myCharacter = localStorage.getItem('pd-char') || myCharacter; } catch {}
 let myModel = null;
@@ -603,6 +603,7 @@ renderer.setAnimationLoop(() => {
   const now = performance.now();
   player.update(dt);
   others.update(dt);
+  life.setPlayer?.(player.object.position.x, player.object.position.z); // crowd steps aside for you
   life.update(dt);
   // keep the shadow area centred on the player
   { const p = player.object.position; sun.position.set(p.x + SUN_OFFSET.x, SUN_OFFSET.y, p.z + SUN_OFFSET.z); sun.target.position.set(p.x, 0, p.z); }
