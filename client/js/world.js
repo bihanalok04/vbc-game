@@ -37,6 +37,7 @@ const PANDAL_THEMES = [
 const DAY_SKY = new THREE.Color(0xa9c8e4);
 const DUSK_SKY = new THREE.Color(0xe9a07a);
 const NIGHT_SKY = new THREE.Color(0x101433);
+const HAZE = new THREE.Color(0xe8cfa8);
 
 // Small seeded random generator (same numbers on every device).
 function seededRandom(seed) {
@@ -537,10 +538,11 @@ export function buildWorld(scene, data = {}) {
     else sky.copy(NIGHT_SKY).lerp(DUSK_SKY, Math.max(0, (l - 0.15) / 0.45));
     if (scene.background && scene.background.isColor) scene.background.copy(sky);
     else scene.background = sky.clone();
-    if (scene.fog) scene.fog.color.copy(sky);
+    // warm golden haze near the horizon by day, blending into the sky
+    if (scene.fog) scene.fog.color.copy(sky).lerp(HAZE, 0.5 * l);
     if (sunLight) {
       sunLight.intensity = sunDay * Math.max(0.08, l);
-      sunLight.color.setHex(l < 0.5 ? 0x8fa6ff : 0xffeecc); // moonlight at night
+      sunLight.color.setHex(l < 0.5 ? 0x8fa6ff : 0xffd9a0); // warm sun by day, moonlight at night
     }
     if (hemiLight) hemiLight.intensity = hemiDay * (0.3 + 0.7 * l);
     const night = 1 - (l - 0.15) / 0.85;
