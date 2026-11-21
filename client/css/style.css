@@ -87,3 +87,11 @@ input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px soli
 #lobby-players, #final-board { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 #lobby-players li, #final-board li { display: flex; justify-content: space-between; background: rgba(255,255,255,.06); border-radius: 8px; padding: 8px 10px; }
 #final-board li:first-child { border: 1px solid var(--gold); }
+
+/* Compass: tall isosceles arrow (points up = straight ahead) */
+#compass-arrow { width: 18px; height: 38px; margin: 0 auto 4px; font-size: 0; background: var(--gold); clip-path: polygon(50% 0, 100% 100%, 50% 78%, 0 100%); filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 1.5px #000) drop-shadow(0 2px 3px #000); }
+
+/* Game over */
+#end-reason { text-align: center; }
+#game-over { text-align: center; font-size: 34px; font-weight: 900; letter-spacing: 2px; color: var(--red, #e63946); text-shadow: 0 2px 8px #000; }
+#big-count.over { font-size: clamp(44px, 14vw, 110px); color: #fff; text-align: center; }

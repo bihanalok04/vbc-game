@@ -156,7 +156,7 @@ socket.on('disconnect', () => {
     player.setEnabled(false);
     others.clear();
     showScreen('menu');
-    $('menu-status').textContent = 'Lost connection to the server. Try again.';
+    $('menu-status').textContent = 'Game over: lost connection to the server. Tap Play to start again.';
   }
 });
 
@@ -377,9 +377,19 @@ socket.on('game:ended', ({ leaderboard, winner, reason }) => {
   $('final-board').innerHTML = leaderboard
     .map((r) => `<li><span>${r.rank}. <i class="dot" style="background:${r.color}"></i>${escapeHtml(r.name)}</span><span>${r.score} pts · ${r.found} found</span></li>`)
     .join('') + (reason === 'all-found' ? '<li><span>Every pandal was found!</span></li>' : '');
+  $('end-reason').textContent = reason === 'all-found' ? 'You found every pandal!' : "⏱ Time's up!";
   const isHost = state.room?.hostId === state.myId;
   $('again-btn').classList.toggle('hidden', !solo && !isHost);
-  showScreen('results');
+  // Show "GAME OVER" over the city for a moment, then the results card.
+  const big = $('big-count');
+  big.textContent = 'GAME OVER';
+  big.classList.add('over');
+  big.classList.remove('hidden');
+  setTimeout(() => {
+    big.classList.add('hidden');
+    big.classList.remove('over');
+    if (state.phase === 'ended') showScreen('results');
+  }, 1800);
 });
 
 // ---------- per-frame game logic ----------
