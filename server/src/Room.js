@@ -1,5 +1,14 @@
 const config = require('./config');
-const { PANDALS, SPAWN_POINTS, getPandal } = require('./pandals');
+const { PANDALS, SPAWN_POINTS, MULTI_SPAWN_POINTS, getPandal } = require('./pandals');
+
+function shuffled(list) {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 const { NO_EFFECTS, pickRandomEventType } = require('./events');
 const { SOUND_MAP } = require('./soundMap');
 const { timeOfDay } = require('./dayCycle');
@@ -170,9 +179,13 @@ class Room {
     // Reset everyone and put them on their spawn points.
     this.firstFinder.clear();
     this.activeEvent = null;
+    // Solo starts in the centre; multiplayer spreads players across different parts of the city.
+    const spawns = this.mode === 'multiplayer'
+      ? [...shuffled(MULTI_SPAWN_POINTS.corners), ...shuffled(MULTI_SPAWN_POINTS.middles)]
+      : SPAWN_POINTS;
     let slot = 0;
     for (const p of this.players.values()) {
-      const spawn = SPAWN_POINTS[slot++ % SPAWN_POINTS.length];
+      const spawn = spawns[slot++ % spawns.length];
       Object.assign(p, { score: 0, x: spawn.x, y: 0, z: spawn.z, rotY: 0, anim: 'idle' });
       p.discovered = new Set();
     }
@@ -280,6 +293,28 @@ class Room {
     }
     // volatile: if a client is lagging, drop old snapshots instead of queueing them
     this.channel.volatile.emit('state:snapshot', { t: Date.now(), players });
+  }
+
+  // Snap a player who wandered off onto the nearest road centre line.
+  recenter(socketId) {
+    if (this.state !== 'playing') return { ok: false, error: 'The round is not running.' };
+    const p = this.players.get(socketId);
+    if (!p) return { ok: false, error: 'You are not in this room.' };
+    let best = null;
+    for (const r of SOUND_MAP.roads) {
+      const vx = r.x2 - r.x1;
+      const vz = r.z2 - r.z1;
+      const t = Math.max(0, Math.min(1, ((p.x - r.x1) * vx + (p.z - r.z1) * vz) / (vx * vx + vz * vz || 1)));
+      const x = r.x1 + vx * t;
+      const z = r.z1 + vz * t;
+      const d = Math.hypot(p.x - x, p.z - z);
+      if (!best || d < best.d) best = { d, x, z };
+    }
+    if (!best) return { ok: false, error: 'No road found.' };
+    p.x = best.x;
+    p.z = best.z;
+    p.lastMoveAt = Date.now();
+    return { ok: true, x: p.x, z: p.z };
   }
 
   handleMove(socket, data) {

@@ -42,8 +42,25 @@ const SPAWN_POINTS = [
   { x: 4, z: -4 },
 ];
 
+// Multiplayer: everyone starts in a different part of the city, on road crossings.
+// Corners first (furthest apart), then the middle of each edge.
+const MULTI_SPAWN_POINTS = {
+  corners: [
+    { x: -110, z: -80 },
+    { x: 90, z: -80 },
+    { x: -110, z: 80 },
+    { x: 90, z: 80 },
+  ],
+  middles: [
+    { x: 0, z: -80 },
+    { x: 0, z: 80 },
+    { x: -110, z: 0 },
+    { x: 90, z: 0 },
+  ],
+};
+
 function getPandal(id) {
   return PANDALS.find((p) => p.id === id) || null;
 }
 
-module.exports = { PANDALS, SPAWN_POINTS, getPandal };
+module.exports = { PANDALS, SPAWN_POINTS, MULTI_SPAWN_POINTS, getPandal };
