@@ -1,0 +1,41 @@
+// All game tuning numbers live here so the whole team can find and change them.
+
+module.exports = {
+  PORT: Number(process.env.PORT) || 3000,
+  // Comma-separated list of allowed frontend URLs, e.g. "https://pandal-dash.vercel.app".
+  // "*" allows any origin (fine for local development).
+  CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '*',
+
+  // Rooms
+  MIN_PLAYERS: 1, // 1 = solo play allowed; multiplayer up to MAX_PLAYERS
+  MAX_PLAYERS: 8,
+  ROOM_CODE_LENGTH: 5,
+  MAX_NAME_LENGTH: 16,
+
+  // Round
+  ROUND_DURATION_MS: 150 * 1000,
+  COUNTDOWN_MS: 3 * 1000, // "3, 2, 1, go" before the round starts
+  SNAPSHOT_RATE_HZ: 15, // how often player positions are broadcast
+
+  // Scoring
+  POINTS: {
+    regular: 3,
+    ghetto: 5,
+    firstDiscoveryBonus: 2,
+  },
+
+  // A player must be this close (in world units) to a pandal to discover it.
+  DISCOVERY_RADIUS: 8,
+
+  // Movement limits, used to reject obviously impossible movement.
+  // Keep these in sync with the frontend's movement code (Member 2).
+  WALK_SPEED: 6,
+  SPRINT_SPEED: 11,
+  SPEED_TOLERANCE: 1.6, // allow some slack for lag and frame-rate jitter
+  WORLD_HALF_SIZE: 160, // the city spans -160..160 on X and Z
+
+  // Random events
+  EVENT_FIRST_DELAY_MS: 30 * 1000,
+  EVENT_MIN_GAP_MS: 25 * 1000,
+  EVENT_MAX_GAP_MS: 45 * 1000,
+};

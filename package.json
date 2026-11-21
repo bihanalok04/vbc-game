@@ -1,0 +1,14 @@
+{
+  "name": "pandal-dash",
+  "private": true,
+  "description": "Pandal Dash: one web service that runs the backend and serves the client/ folder.",
+  "scripts": {
+    "build": "npm --prefix server install",
+    "start": "npm --prefix server start",
+    "dev": "npm --prefix server run dev",
+    "test": "npm --prefix server test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
