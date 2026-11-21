@@ -1,7 +1,7 @@
 // The other players in the room: a coloured avatar with a name tag each,
 // moved smoothly toward the positions in the server's state:snapshot messages.
 import * as THREE from 'three';
-import { buildCharacter, animateCharacter } from './cityLife.js';
+import { buildCharacter, animateCharacter } from './characters.js';
 
 function nameTag(name, color) {
   const canvas = document.createElement('canvas');
