@@ -41,7 +41,10 @@ Built at Vibe Coders Hackathon Edition 3, Kolkata.
   - dhak drums at every pandal, crowd murmur, and noisy "jhamela" crowds with police whistles
   - honking cars whose pitch shifts as they pass you
   - tanpura background music and the shankh (conch shell)
-- **Works on phones:** touch joystick, sprint button, a layout for small screens, and lighter graphics for phones.
+- **Works on phones:** touch joystick (the camera follows where you steer), sprint and jump buttons, a layout for small screens, and lighter graphics for phones.
+- **Kolkata street food:** phuchka, kathi roll, jhalmuri, bhaar chai, rosogolla, ghugni and mishti doi stalls. Eat at one for an 8-second stamina surge.
+- **8 Bengali characters** in the streets: a mota babu with his umbrella, a dhaki drumming with a kash-flower plume, a mashima in a laal-paar saree, a purohit with a smoking dhunuchi, a phuchkawala, a Kolkata traffic policeman in white, a College Street student with a jhola, and a kid with a balloon.
+- **North-Kolkata lanes:** weathered orange and ochre walls, green-shuttered balconies, sagging overhead wires, parked motorbikes, coconut palms on the ghat.
 
 ## Tech stack
 
@@ -91,6 +94,18 @@ npm test        # 28 automated checks: rooms, modes, scoring, anti-cheat, timer
 
 Open http://localhost:3000 in two tabs to try multiplayer. To try the sound engine on its own,
 open http://localhost:3000/audio-test.html.
+
+## Sound credits
+
+Real recordings from Wikimedia Commons, loaded in the browser:
+
+- *Puja dhak.ogg*, by Tito Dutta, CC BY-SA 3.0
+- *Durga Puja Dhak Dhol.ogg*, by Mamta Jagdish Dhody, CC BY-SA 4.0
+- *Conch shell.ogg*, CC BY 2.5
+- *large-crowd-medium-distance-stereo*, by eguobyte, CC0
+- *Sounds of Traffic and Sellers.ogg*, CC BY-SA 4.0
+
+If a recording can't load, the game falls back to a generated version of that sound.
 
 ## Team
 

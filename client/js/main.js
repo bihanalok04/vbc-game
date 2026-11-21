@@ -8,6 +8,7 @@ import { createPlayer } from './player.js';
 import { createRemotePlayers } from './remotePlayers.js';
 import { setupTouchControls } from './touch.js';
 import { PandalAudio } from './audio.js';
+import { buildCityLife } from './cityLife.js';
 
 // ---------- renderer, scene, lights ----------
 const canvas = document.getElementById('game');
@@ -36,9 +37,12 @@ async function loadMap() {
 
 const mapData = await loadMap();
 const world = buildWorld(scene, mapData);
+const life = buildCityLife(scene, world); // food stalls + 8 Bengali characters
 const player = createPlayer(scene, camera, world, canvas);
 const others = createRemotePlayers(scene);
 const touch = setupTouchControls();
+player.setAutoCamera?.(touch.isTouch); // on phones the camera follows the joystick
+const stallCooldown = new Map(); // stall id -> time you can eat there again
 const audio = new PandalAudio();
 player.setEnabled(false);
 
@@ -378,6 +382,7 @@ renderer.setAnimationLoop(() => {
   const now = performance.now();
   player.update(dt);
   others.update(dt);
+  life.update(dt);
 
   camera.getWorldDirection(camDir);
   const yaw = Math.atan2(-camDir.x, -camDir.z);
@@ -390,6 +395,15 @@ renderer.setAnimationLoop(() => {
 
   if (state.phase === 'playing') {
     staminaFill.style.width = `${s.stamina * 100}%`;
+    staminaFill.style.background = s.surgeLeft > 0 ? '#52d273' : '';
+    // Street food: walk up to a stall to eat and get a stamina surge.
+    const stall = life.nearestStall(s.x, s.z, 3.4);
+    if (stall && (stallCooldown.get(stall.id) || 0) < now) {
+      stallCooldown.set(stall.id, now + 25000);
+      player.staminaSurge?.(8);
+      audio.playSfx('discover');
+      toast(`${stall.food}! Stamina surge 💪`, true);
+    }
     const left = state.endsAt - (Date.now() + state.clockOffset);
     $('timer').textContent = fmtTime(left);
     $('timer').classList.toggle('low', left < 20000);
