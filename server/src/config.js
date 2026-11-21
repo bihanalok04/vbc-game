@@ -1,4 +1,4 @@
-﻿// All game tuning numbers live here so the whole team can find and change them.
+// All game tuning numbers live here so the whole team can find and change them.
 
 module.exports = {
   PORT: Number(process.env.PORT) || 3000,

@@ -1,4 +1,4 @@
-﻿// Phone controls: an on-screen joystick and a sprint button.
+// Phone controls: an on-screen joystick and a sprint button.
 // They "press" the same keys the keyboard does (W/A/S/D and Shift), so the
 // player movement code (player.js) works on phones without any changes.
 

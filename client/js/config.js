@@ -1,4 +1,4 @@
-﻿// Shared client settings. Keep speeds in sync with server/src/config.js.
+// Shared client settings. Keep speeds in sync with server/src/config.js.
 
 // The game and the server run on the same Render service (and on localhost in development),
 // so the game always talks to the address it was loaded from.

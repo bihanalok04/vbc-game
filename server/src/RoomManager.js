@@ -1,4 +1,4 @@
-﻿const config = require('./config');
+const config = require('./config');
 const Room = require('./Room');
 
 // No I, O, 0 or 1 so codes are easy to read out loud and type.

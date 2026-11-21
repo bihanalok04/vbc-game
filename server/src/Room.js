@@ -1,4 +1,4 @@
-﻿const config = require('./config');
+const config = require('./config');
 const { PANDALS, SPAWN_POINTS, getPandal } = require('./pandals');
 const { NO_EFFECTS, pickRandomEventType } = require('./events');
 const { SOUND_MAP } = require('./soundMap');
