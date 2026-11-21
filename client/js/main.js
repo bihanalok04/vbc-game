@@ -657,3 +657,33 @@ window.addEventListener('resize', () => {
 });
 
 showScreen('menu');
+
+// ---------- tutorial: 3 steps, first visit + "How to play" ----------
+let tutStep = 0;
+const tutSteps = [...document.querySelectorAll('.tut-step')];
+const tutDots = [...document.querySelectorAll('.tut-dots i')];
+function renderTut() {
+  tutSteps.forEach((el, i) => el.classList.toggle('hidden', i !== tutStep));
+  tutDots.forEach((el, i) => el.classList.toggle('on', i === tutStep));
+  $('tut-back').style.visibility = tutStep === 0 ? 'hidden' : 'visible';
+  $('tut-next').textContent = tutStep === tutSteps.length - 1 ? "Let's play! 🏃" : 'Next →';
+}
+function openTutorial() { tutStep = 0; renderTut(); $('tutorial').classList.remove('hidden'); }
+function closeTutorial() {
+  $('tutorial').classList.add('hidden');
+  try { localStorage.setItem('pd-tutorial-seen', '1'); } catch {}
+}
+$('tut-next').onclick = () => { if (tutStep < tutSteps.length - 1) { tutStep++; renderTut(); } else closeTutorial(); };
+$('tut-back').onclick = () => { if (tutStep > 0) { tutStep--; renderTut(); } };
+$('tut-skip').onclick = closeTutorial;
+tutDots.forEach((d, i) => { d.onclick = () => { tutStep = i; renderTut(); }; });
+$('howto-btn').onclick = openTutorial;
+window.addEventListener('keydown', (e) => {
+  if ($('tutorial').classList.contains('hidden')) return;
+  if (e.key === 'ArrowRight' || e.key === 'Enter') $('tut-next').click();
+  if (e.key === 'ArrowLeft') $('tut-back').click();
+  if (e.key === 'Escape') closeTutorial();
+});
+let seenTut = false;
+try { seenTut = localStorage.getItem('pd-tutorial-seen') === '1'; } catch {}
+if (!seenTut) openTutorial();

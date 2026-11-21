@@ -85,9 +85,7 @@
         <div class="join"><input id="code" maxlength="5" placeholder="CODE" autocapitalize="characters"><button id="join-btn">Join</button></div>
         <button id="back-btn" class="link">← Back</button>
       </div>
-      <p class="help">Find pandals before time runs out. Regular pandal +3, hidden ghetto pandal +5, first to find it +2.<br>
-        Eat at street-food stalls (phuchka, kathi roll, jhalmuri…) for a stamina surge.<br>
-        Move: WASD / arrows or the joystick. Sprint: Shift. Jump: Space. Look around: drag.</p>
+      <button id="howto-btn" class="link">❓ How to play</button>
       <p id="menu-status" class="status"></p>
     </div>
   </section>
@@ -118,6 +116,40 @@
       <ol id="final-board"></ol>
       <button id="again-btn" class="primary">Play again</button>
       <button id="menu-btn" class="link">Back to menu</button>
+    </div>
+  </section>
+
+  <!-- Tutorial (step-by-step, shown on first visit and from "How to play") -->
+  <section id="tutorial" class="screen hidden">
+    <div class="panel tut">
+      <div class="tut-step" data-step="0">
+        <div class="tut-icon">🛕</div>
+        <h2>Find the pandals</h2>
+        <p>Find pandals before time runs out. Follow the golden arrow.</p>
+        <div class="tut-points"><span><b>+3</b>Regular pandal</span><span><b>+5</b>Hidden ghetto pandal</span><span><b>+2</b>First to find it</span></div>
+      </div>
+      <div class="tut-step hidden" data-step="1">
+        <div class="tut-icon">🥟</div>
+        <h2>Eat for energy</h2>
+        <p>Eat at street-food stalls (phuchka, kathi roll, jhalmuri…) for a stamina surge.</p>
+        <div class="tut-points"><span><b>🧈</b>Ghee meter = stamina</span><span><b>⚡</b>Walk up to a stall to eat</span></div>
+      </div>
+      <div class="tut-step hidden" data-step="2">
+        <div class="tut-icon">🎮</div>
+        <h2>Controls</h2>
+        <div class="tut-keys">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows or joystick <span>Move</span></div>
+          <div><kbd>Shift</kbd> <span>Sprint</span></div>
+          <div><kbd>Space</kbd> <span>Jump</span></div>
+          <div><kbd>Drag</kbd> <span>Look around</span></div>
+        </div>
+      </div>
+      <div class="tut-dots"><i class="on"></i><i></i><i></i></div>
+      <div class="tut-nav">
+        <button id="tut-back" class="link">← Back</button>
+        <button id="tut-next" class="primary">Next →</button>
+      </div>
+      <button id="tut-skip" class="link">Skip tutorial</button>
     </div>
   </section>
 
