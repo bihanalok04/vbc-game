@@ -22,9 +22,10 @@ class RoomManager {
     return code;
   }
 
-  createRoom() {
+  // options: { mode: 'solo' | 'multiplayer', durationSec: 120 | 150 | 180 }
+  createRoom(options = {}) {
     const code = this.generateCode();
-    const room = new Room(code, this.io, (c) => this.rooms.delete(c));
+    const room = new Room(code, this.io, (c) => this.rooms.delete(c), options);
     this.rooms.set(code, room);
     return room;
   }
@@ -55,9 +56,10 @@ class RoomManager {
   list() {
     return [...this.rooms.values()].map((r) => ({
       code: r.code,
+      mode: r.mode,
       state: r.state,
       players: r.players.size,
-      maxPlayers: config.MAX_PLAYERS,
+      maxPlayers: r.maxPlayers,
     }));
   }
 }

@@ -6,14 +6,21 @@ module.exports = {
   // "*" allows any origin (fine for local development).
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '*',
 
-  // Rooms
-  MIN_PLAYERS: 1, // 1 = solo play allowed; multiplayer up to MAX_PLAYERS
-  MAX_PLAYERS: 8,
+  // Game modes. Solo rooms are private (nobody can join them).
+  MODES: {
+    solo: { minPlayers: 1, maxPlayers: 1 },
+    multiplayer: { minPlayers: 2, maxPlayers: 8 },
+  },
   ROOM_CODE_LENGTH: 5,
   MAX_NAME_LENGTH: 16,
 
-  // Round
-  ROUND_DURATION_MS: 150 * 1000,
+  // Round length: the player (or the host in multiplayer) picks one of these.
+  ROUND_DURATION_OPTIONS_SEC: [120, 150, 180],
+  DEFAULT_ROUND_DURATION_SEC: 150,
+
+  // Day/night: each round runs the in-game clock from START_HOUR to END_HOUR,
+  // so players see afternoon -> dusk -> Puja night -> dawn. 30 = 6 AM next day.
+  DAY_CYCLE: { startHour: 16, endHour: 30 },
   COUNTDOWN_MS: 3 * 1000, // "3, 2, 1, go" before the round starts
   SNAPSHOT_RATE_HZ: 15, // how often player positions are broadcast
 

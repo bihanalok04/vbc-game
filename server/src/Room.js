@@ -1,6 +1,13 @@
 const config = require('./config');
 const { PANDALS, SPAWN_POINTS, getPandal } = require('./pandals');
 const { NO_EFFECTS, pickRandomEventType } = require('./events');
+const { SOUND_MAP } = require('./soundMap');
+const { timeOfDay } = require('./dayCycle');
+
+function validDurationSec(sec) {
+  const n = Number(sec);
+  return config.ROUND_DURATION_OPTIONS_SEC.includes(n) ? n : null;
+}
 
 const PLAYER_COLORS = [
   '#e63946', '#f4a261', '#2a9d8f', '#457b9d',
@@ -13,10 +20,12 @@ const PLAYER_COLORS = [
 //   playing   -> the round is running
 //   ended     -> round over; final leaderboard shown; host can go back to lobby
 class Room {
-  constructor(code, io, onEmpty) {
+  constructor(code, io, onEmpty, options = {}) {
     this.code = code;
     this.io = io;
     this.onEmpty = onEmpty; // called when the last player leaves
+    this.mode = options.mode === 'solo' ? 'solo' : 'multiplayer';
+    this.durationSec = validDurationSec(options.durationSec) || config.DEFAULT_ROUND_DURATION_SEC;
     this.hostId = null;
     this.state = 'lobby';
     this.players = new Map(); // socket id -> player
@@ -33,8 +42,20 @@ class Room {
     return this.io.to(this.code);
   }
 
+  get minPlayers() {
+    return config.MODES[this.mode].minPlayers;
+  }
+
+  get maxPlayers() {
+    return config.MODES[this.mode].maxPlayers;
+  }
+
+  get durationMs() {
+    return this.durationSec * 1000;
+  }
+
   isFull() {
-    return this.players.size >= config.MAX_PLAYERS;
+    return this.players.size >= this.maxPlayers;
   }
 
   effects() {
@@ -61,9 +82,12 @@ class Room {
     return {
       code: this.code,
       state: this.state,
+      mode: this.mode,
+      durationSec: this.durationSec,
+      durationOptions: config.ROUND_DURATION_OPTIONS_SEC,
       hostId: this.hostId,
-      minPlayers: config.MIN_PLAYERS,
-      maxPlayers: config.MAX_PLAYERS,
+      minPlayers: this.minPlayers,
+      maxPlayers: this.maxPlayers,
       players: [...this.players.values()].map((p) => this.publicPlayer(p)),
       startsAt: this.startsAt,
       endsAt: this.endsAt,
@@ -134,8 +158,8 @@ class Room {
   startGame(requesterId) {
     if (requesterId !== this.hostId) return { ok: false, error: 'Only the host can start the game.' };
     if (this.state !== 'lobby') return { ok: false, error: 'The game has already started.' };
-    if (this.players.size < config.MIN_PLAYERS) {
-      return { ok: false, error: `Need at least ${config.MIN_PLAYERS} player(s) to start.` };
+    if (this.players.size < this.minPlayers) {
+      return { ok: false, error: `Multiplayer needs at least ${this.minPlayers} players. Share the room code!` };
     }
 
     // Reset everyone and put them on their spawn points.
@@ -151,14 +175,17 @@ class Room {
     const now = Date.now();
     this.state = 'countdown';
     this.startsAt = now + config.COUNTDOWN_MS;
-    this.endsAt = this.startsAt + config.ROUND_DURATION_MS;
+    this.endsAt = this.startsAt + this.durationMs;
 
     this.channel.emit('game:countdown', {
+      mode: this.mode,
       startsAt: this.startsAt,
       endsAt: this.endsAt,
       serverTime: now,
-      durationMs: config.ROUND_DURATION_MS,
+      durationMs: this.durationMs,
+      timeOfDay: timeOfDay(0),
       pandals: PANDALS,
+      soundMap: SOUND_MAP,
       players: [...this.players.values()].map((p) => ({
         ...this.publicPlayer(p), x: p.x, y: p.y, z: p.z, rotY: p.rotY,
       })),
@@ -179,9 +206,12 @@ class Room {
     this.broadcastLeaderboard();
 
     this.timers.tick = setInterval(() => {
+      const t = Date.now();
+      const remainingMs = Math.max(0, this.endsAt - t);
       this.channel.emit('timer:tick', {
-        remainingMs: Math.max(0, this.endsAt - Date.now()),
-        serverTime: Date.now(),
+        remainingMs,
+        serverTime: t,
+        timeOfDay: timeOfDay(1 - remainingMs / this.durationMs),
       });
     }, 1000);
 
@@ -201,6 +231,23 @@ class Room {
       winner: leaderboard[0] || null,
     });
     this.broadcastRoom();
+  }
+
+  // Host changes the room settings while in the lobby (or after a round).
+  updateSettings(requesterId, settings = {}) {
+    if (requesterId !== this.hostId) return { ok: false, error: 'Only the host can change settings.' };
+    if (this.state === 'countdown' || this.state === 'playing') {
+      return { ok: false, error: 'You cannot change settings during a round.' };
+    }
+    if (settings.durationSec !== undefined) {
+      const sec = validDurationSec(settings.durationSec);
+      if (!sec) {
+        return { ok: false, error: `Time must be one of ${config.ROUND_DURATION_OPTIONS_SEC.join(', ')} seconds.` };
+      }
+      this.durationSec = sec;
+    }
+    this.broadcastRoom();
+    return { ok: true, durationSec: this.durationSec };
   }
 
   // Host takes everyone from the results screen back to the lobby for another round.

@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const config = require('./config');
 const { PANDALS } = require('./pandals');
 const { EVENT_TYPES } = require('./events');
+const { SOUND_MAP } = require('./soundMap');
 const RoomManager = require('./RoomManager');
 
 // ---------- HTTP (Express) ----------
@@ -24,9 +25,10 @@ app.get('/health', (req, res) => res.json({ ok: true, uptime: process.uptime() }
 // Numbers the frontend needs so it stays in sync with the server.
 app.get('/api/config', (req, res) => {
   res.json({
-    minPlayers: config.MIN_PLAYERS,
-    maxPlayers: config.MAX_PLAYERS,
-    roundDurationMs: config.ROUND_DURATION_MS,
+    modes: config.MODES,
+    durationOptionsSec: config.ROUND_DURATION_OPTIONS_SEC,
+    defaultDurationSec: config.DEFAULT_ROUND_DURATION_SEC,
+    dayCycle: config.DAY_CYCLE,
     countdownMs: config.COUNTDOWN_MS,
     points: config.POINTS,
     discoveryRadius: config.DISCOVERY_RADIUS,
@@ -40,6 +42,7 @@ app.get('/api/config', (req, res) => {
 });
 
 app.get('/api/pandals', (req, res) => res.json(PANDALS));
+app.get('/api/sound-map', (req, res) => res.json({ pandals: PANDALS, ...SOUND_MAP }));
 
 let rooms; // set below, once Socket.IO exists
 app.get('/api/rooms', (req, res) => res.json(rooms.list()));
@@ -71,8 +74,10 @@ function reply(cb, payload) {
 }
 
 io.on('connection', (socket) => {
+  // data: { name, mode: 'solo' | 'multiplayer', durationSec: 120 | 150 | 180 }
+  // Solo: create, then send game:start straight away.
   socket.on('room:create', (data, cb) => {
-    const room = rooms.createRoom();
+    const room = rooms.createRoom({ mode: data?.mode, durationSec: data?.durationSec });
     const player = rooms.join(socket, room, cleanName(data?.name));
     reply(cb, { ok: true, playerId: player.id, room: room.publicState() });
   });
@@ -80,6 +85,7 @@ io.on('connection', (socket) => {
   socket.on('room:join', (data, cb) => {
     const room = rooms.getRoom(data?.code);
     if (!room) return reply(cb, { ok: false, error: 'Room not found. Check the code.' });
+    if (room.mode === 'solo') return reply(cb, { ok: false, error: 'That is a single-player game.' });
     if (room.isFull()) return reply(cb, { ok: false, error: 'Room is full.' });
     if (room.state !== 'lobby') return reply(cb, { ok: false, error: 'That game has already started.' });
     const player = rooms.join(socket, room, cleanName(data?.name));
@@ -95,6 +101,13 @@ io.on('connection', (socket) => {
     const room = rooms.roomOf(socket.id);
     if (!room) return reply(cb, { ok: false, error: 'You are not in a room.' });
     reply(cb, room.startGame(socket.id));
+  });
+
+  // Host picks the round length in the lobby: { durationSec: 120 | 150 | 180 }
+  socket.on('room:settings', (data, cb) => {
+    const room = rooms.roomOf(socket.id);
+    if (!room) return reply(cb, { ok: false, error: 'You are not in a room.' });
+    reply(cb, room.updateSettings(socket.id, data || {}));
   });
 
   socket.on('room:reset', (_data, cb) => {

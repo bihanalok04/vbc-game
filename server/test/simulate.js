@@ -39,21 +39,36 @@ async function main() {
   const b = connect(URL, { transports: ['websocket'] });
   await Promise.all([once(a, 'connect'), once(b, 'connect')]);
 
-  // Rooms
-  const created = await emit(a, 'room:create', { name: 'Riya' });
-  check('host creates a room', created.ok && created.room.code.length === 5, created.room?.code);
-  const code = created.room.code;
-
-  // Solo: a single player can play a round on their own.
+  // Solo mode: private room, starts with one player, chosen time limit.
   const solo = connect(URL, { transports: ['websocket'] });
   await once(solo, 'connect');
-  const soloRoom = await emit(solo, 'room:create', { name: 'Solo' });
+  const soloRoom = await emit(solo, 'room:create', { name: 'Solo', mode: 'solo', durationSec: 120 });
+  check('solo room is created in solo mode', soloRoom.ok && soloRoom.room.mode === 'solo' && soloRoom.room.maxPlayers === 1);
+  const soloJoin = await emit(b, 'room:join', { code: soloRoom.room.code, name: 'Intruder' });
+  check('nobody can join a solo game', !soloJoin.ok, soloJoin.error);
   const soloStarted = once(solo, 'game:countdown');
   const soloStart = await emit(solo, 'game:start');
   const soloCd = await soloStarted;
-  check('solo player can start a round', soloRoom.ok && soloStart.ok);
-  check('round lasts 150 seconds', soloCd.durationMs === 150 * 1000);
+  check('solo player can start alone', soloStart.ok);
+  check('solo round uses the chosen 120 seconds', soloCd.durationMs === 120 * 1000);
+  check('countdown includes the sound map', soloCd.soundMap?.roads?.length > 0 && soloCd.soundMap?.crowdZones?.length > 0);
+  check('countdown starts in the afternoon', soloCd.timeOfDay?.phase === 'day', soloCd.timeOfDay?.clock);
+  const tick = await once(solo, 'timer:tick');
+  check('timer ticks carry the time of day', typeof tick.timeOfDay?.light === 'number', JSON.stringify(tick.timeOfDay));
   solo.disconnect();
+
+  // Multiplayer mode
+  const created = await emit(a, 'room:create', { name: 'Riya', mode: 'multiplayer' });
+  check('host creates a multiplayer room', created.ok && created.room.code.length === 5 && created.room.durationSec === 150, created.room?.code);
+  const code = created.room.code;
+
+  const tooFew = await emit(a, 'game:start');
+  check('multiplayer needs 2 players to start', !tooFew.ok, tooFew.error);
+
+  const badTime = await emit(a, 'room:settings', { durationSec: 999 });
+  check('time limit must be 120, 150 or 180', !badTime.ok);
+  const setTime = await emit(a, 'room:settings', { durationSec: 180 });
+  check('host sets the time limit to 180', setTime.ok && setTime.durationSec === 180);
 
   const bad = await emit(b, 'room:join', { code: 'ZZZZZ', name: 'Arjun' });
   check('joining a wrong code fails', !bad.ok);
@@ -63,6 +78,8 @@ async function main() {
 
   const notHost = await emit(b, 'game:start');
   check('only the host can start', !notHost.ok);
+  const notHostSettings = await emit(b, 'room:settings', { durationSec: 120 });
+  check('only the host can change the time', !notHostSettings.ok);
 
   // Start the round
   const countdown = once(a, 'game:countdown');
@@ -71,6 +88,7 @@ async function main() {
   check('host starts the game', start.ok);
   const cd = await countdown;
   check('countdown sends the pandal list', cd.pandals.length > 0, `${cd.pandals.length} pandals`);
+  check('multiplayer round uses the host-chosen 180 seconds', cd.durationMs === 180 * 1000);
   await started;
   check('round starts after the countdown', true);
 

@@ -43,18 +43,26 @@ Load Socket.IO in the HTML page:
 const SERVER_URL = location.hostname === 'localhost' ? '' : 'https://YOUR-APP.onrender.com';
 const socket = io(SERVER_URL);
 
-// Create a room (host)
-socket.emit('room:create', { name: 'Riya' }, (res) => {
+// SINGLE PLAYER: create a solo room and start straight away
+socket.emit('room:create', { name: 'Riya', mode: 'solo', durationSec: 150 }, () => {
+  socket.emit('game:start');
+});
+
+// MULTIPLAYER: create a room (host) and share the code
+socket.emit('room:create', { name: 'Riya', mode: 'multiplayer', durationSec: 150 }, (res) => {
   if (!res.ok) return alert(res.error);
   console.log('Room code:', res.room.code); // show this so friends can join
 });
+
+// Host changes the time limit in the lobby: 120, 150 or 180 seconds
+socket.emit('room:settings', { durationSec: 180 });
 
 // Join a room
 socket.emit('room:join', { code: 'AB3CD', name: 'Arjun' }, (res) => {
   if (!res.ok) alert(res.error);
 });
 
-// Host starts the round (works solo too)
+// Host starts the round (multiplayer needs 2+ players)
 socket.emit('game:start', {}, (res) => { if (!res.ok) alert(res.error); });
 
 // Send your position about 10 times a second while playing
@@ -77,10 +85,11 @@ socket.emit('pandal:discover', { pandalId: 'bagbazar' }, (res) => {
 
 | Event             | Data                              | Reply                                  |
 | ----------------- | --------------------------------- | -------------------------------------- |
-| `room:create`     | `{ name }`                        | `{ ok, playerId, room }`               |
+| `room:create`     | `{ name, mode: 'solo'\|'multiplayer', durationSec: 120\|150\|180 }` | `{ ok, playerId, room }` |
+| `room:settings`   | `{ durationSec }` (host, in lobby) | `{ ok, durationSec }` or `{ ok:false, error }` |
 | `room:join`       | `{ code, name }`                  | `{ ok, playerId, room }` or `{ ok:false, error }` |
 | `room:leave`      | —                                 | `{ ok }`                               |
-| `game:start`      | — (host only, solo is fine)       | `{ ok }` or `{ ok:false, error }`      |
+| `game:start`      | — (host only; multiplayer 2+)     | `{ ok }` or `{ ok:false, error }`      |
 | `player:move`     | `{ x, y, z, rotY, anim }`         | none                                   |
 | `pandal:discover` | `{ pandalId }`                    | `{ ok, points, first, totalScore }` or `{ ok:false, error }` |
 | `room:reset`      | — (host only, after the round)    | `{ ok }`                               |
@@ -90,11 +99,11 @@ socket.emit('pandal:discover', { pandalId: 'bagbazar' }, (res) => {
 
 | Event               | Data                                                                 | Use it for |
 | ------------------- | -------------------------------------------------------------------- | ---------- |
-| `room:update`       | `{ code, state, hostId, players[], endsAt, activeEvent, ... }`       | Lobby screen, player list |
+| `room:update`       | `{ code, state, mode, durationSec, durationOptions, hostId, players[], ... }` | Lobby screen, player list, time picker |
 | `player:left`       | `{ id, name }`                                                       | Remove their avatar |
-| `game:countdown`    | `{ startsAt, endsAt, pandals[], players[] with spawn x/z }`          | Build pandals, place players, show 3-2-1 |
+| `game:countdown`    | `{ mode, startsAt, endsAt, durationMs, pandals[], soundMap, timeOfDay, players[] }` | Build pandals, place players, start audio, show 3-2-1 |
 | `game:started`      | `{ startsAt, endsAt, serverTime }`                                   | Let players move |
-| `timer:tick`        | `{ remainingMs }` every second                                       | Countdown timer |
+| `timer:tick`        | `{ remainingMs, timeOfDay: { hour, light, phase, clock } }` every second | Countdown timer, sky/lighting |
 | `state:snapshot`    | `{ t, players: [{ id, x, y, z, rotY, anim }] }` 15 times a second    | Move other players |
 | `player:correct`    | `{ x, y, z }`                                                        | Server rejected your move: snap back here |
 | `pandal:discovered` | `{ playerName, pandalName, pandalType, points, first, ... }`         | "Riya found Bagbazar +5" toast |
@@ -107,8 +116,8 @@ Room `state` is one of `lobby`, `countdown`, `playing`, `ended`.
 
 ### Game rules the server enforces
 
-- Play solo or with up to 8 players. You can only join while the room is in the lobby.
-- Rounds last 150 seconds, after a 3-second countdown.
+- Two modes: **single player** (private room, starts at once) and **multiplayer** (2–8 players, join by code while in the lobby).
+- Rounds last 120, 150 or 180 seconds (default 150), chosen by the player or host, after a 3-second countdown.
 - Regular pandal +3, ghetto pandal +5, first player to find it +2.
 - You must be within 8 units of a pandal to discover it.
 - Moving faster than sprint speed, or off the map, gets corrected.
@@ -117,6 +126,50 @@ Room `state` is one of `lobby`, `countdown`, `playing`, `ended`.
 
 Pandal positions are in `server/src/pandals.js`, and the frontend can also load them from
 `GET /api/pandals`. Speeds and points are in `GET /api/config`.
+
+## Day and night
+
+Each round runs the in-game clock from 4 PM to 6 AM: afternoon, dusk, Puja night, then dawn.
+Every player gets the same time from `timer:tick` → `timeOfDay`:
+
+- `light`: 1 = full daylight, 0.15 = darkest night. Use it for the sun's brightness, the sky colour, and turning on pandal lights when it is low.
+- `phase`: `day`, `dusk`, `night` or `dawn`.
+- `clock`: text like `"8:30 PM"` to show on screen.
+
+```js
+socket.on('timer:tick', ({ timeOfDay }) => {
+  sun.intensity = timeOfDay.light;
+  scene.background.setRGB(0.05 + 0.45 * timeOfDay.light, 0.05 + 0.6 * timeOfDay.light, 0.12 + 0.75 * timeOfDay.light);
+  pandalLights.forEach((l) => (l.visible = timeOfDay.light < 0.6));
+});
+```
+
+## Sound (music and Doppler effect)
+
+`client/js/audio.js` is a ready-made sound engine. Every sound is generated in code, so there
+are no audio files to download. It plays dhak at every pandal, crowd murmur and noisy "jhamela"
+crowds with police whistles, honking cars on the roads, tanpura background music, and shankh
+and bell effects. Sounds come from their real position in the city, and **cars and pandals change
+pitch as you move past them (Doppler effect)**.
+
+Try it: run the server and open http://localhost:3000/audio-test.html (headphones help).
+
+```js
+import { PandalAudio } from './js/audio.js';
+const audio = new PandalAudio();
+playButton.onclick = () => audio.start();               // phones only allow sound after a tap
+socket.on('game:countdown', (d) => audio.setup(d));     // pandals + soundMap
+socket.on('game:started', () => audio.playSfx('go'));
+socket.on('timer:tick', (t) => audio.setLight(t.timeOfDay.light));
+socket.on('event:started', (e) => audio.onEvent(e.type, true));
+socket.on('event:ended', (e) => audio.onEvent(e.type, false));
+socket.on('pandal:discovered', (d) => { if (d.playerId === socket.id) audio.playSfx(d.first ? 'first' : 'discover'); });
+socket.on('game:ended', () => audio.playSfx('end'));
+// every frame:
+audio.update(player.position, camera.rotation.y, deltaSeconds);
+```
+
+Crowd zones and roads are in `server/src/soundMap.js`. Line the 3D roads up with them.
 
 ## Deploy
 
