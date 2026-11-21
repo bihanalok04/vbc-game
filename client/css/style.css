@@ -95,3 +95,13 @@ input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px soli
 #end-reason { text-align: center; }
 #game-over { text-align: center; font-size: 34px; font-weight: 900; letter-spacing: 2px; color: var(--red, #e63946); text-shadow: 0 2px 8px #000; }
 #big-count.over { font-size: clamp(44px, 14vw, 110px); color: #fff; text-align: center; }
+
+/* Loading / error states */
+#loading { z-index: 50; }
+#loading .status { color: #fff; opacity: .85; }
+#loading.failed .status { color: #ffb4a2; opacity: 1; }
+#loading.failed .spinner { display: none; }
+.spinner { width: 42px; height: 42px; margin: 4px auto; border-radius: 50%; border: 4px solid rgba(255,255,255,.15); border-top-color: var(--gold); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.status:not(.error) { color: #ffe8a3; }
+button:disabled { opacity: .5; cursor: wait; }

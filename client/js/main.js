@@ -43,12 +43,31 @@ sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.05;
 scene.add(sun, sun.target);
 
+// Load the map with a loading screen; on failure show the error and a Retry button.
 async function loadMap() {
-  try {
-    const res = await fetch(`${SERVER_URL}/api/sound-map`);
-    return await res.json();
-  } catch {
-    return {}; // server not reachable yet: build an empty city
+  const box = document.getElementById('loading');
+  const msg = document.getElementById('loading-msg');
+  const retry = document.getElementById('retry-btn');
+  for (;;) {
+    box.classList.remove('hidden', 'failed');
+    msg.textContent = 'Loading Kolkata… (first load can take up to 40 seconds while the server wakes up)';
+    retry.classList.add('hidden');
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 60000);
+      const res = await fetch(`${SERVER_URL}/api/sound-map`, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`server error ${res.status}`);
+      const data = await res.json();
+      if (!data?.pandals?.length) throw new Error('the map came back empty');
+      box.classList.add('hidden');
+      return data;
+    } catch (err) {
+      box.classList.add('failed');
+      msg.textContent = `Couldn't load the map: ${err.name === 'AbortError' ? 'the server took too long' : err.message || 'network error'}. Check your internet and tap Retry.`;
+      retry.classList.remove('hidden');
+      await new Promise((resolve) => { retry.onclick = resolve; });
+    }
   }
 }
 
@@ -175,25 +194,49 @@ $('time-choice').addEventListener('click', (e) => {
   pickChoice($('time-choice'), sec);
 });
 
-function createRoom(mode) {
-  startAudio();
-  $('menu-status').textContent = '';
-  socket.emit('room:create', { name: playerName(), mode, durationSec: state.durationSec, character: myCharacter }, (res) => {
-    if (!res?.ok) { $('menu-status').textContent = res?.error || 'Could not create a room.'; return; }
-    enterRoom(res.room);
-    if (mode === 'solo') socket.emit('game:start', {}, (r) => { if (!r?.ok) $('menu-status').textContent = r?.error; });
+// Send a request to the server with a loading state, a timeout and a readable error.
+function request(event, data, { status, buttons = [], busyText = '' }) {
+  return new Promise((resolve) => {
+    status.textContent = busyText;
+    status.classList.remove('error');
+    buttons.forEach((b) => { b.disabled = true; });
+    let done = false;
+    const finish = (res) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      buttons.forEach((b) => { b.disabled = false; });
+      if (!res?.ok) status.classList.add('error');
+      status.textContent = res?.ok ? '' : res?.error || 'Something went wrong. Try again.';
+      resolve(res || { ok: false });
+    };
+    const timer = setTimeout(() => finish({
+      ok: false,
+      error: socket.connected ? 'The server did not answer. Try again.' : 'Cannot reach the game server. Check your connection and try again.',
+    }), 15000);
+    socket.emit(event, data, finish);
   });
+}
+const menuButtons = () => [$('solo-btn'), $('create-btn'), $('join-btn')];
+
+async function createRoom(mode) {
+  startAudio();
+  const opts = { status: $('menu-status'), buttons: menuButtons() };
+  const res = await request('room:create', { name: playerName(), mode, durationSec: state.durationSec, character: myCharacter },
+    { ...opts, busyText: mode === 'solo' ? 'Starting your round…' : 'Creating room…' });
+  if (!res.ok) return;
+  enterRoom(res.room);
+  if (mode === 'solo') await request('game:start', {}, { ...opts, busyText: 'Starting your round…' });
 }
 $('solo-btn').onclick = () => createRoom('solo');
 $('create-btn').onclick = () => createRoom('multiplayer');
-$('join-btn').onclick = () => {
+$('join-btn').onclick = async () => {
   startAudio();
   const code = $('code').value.trim().toUpperCase();
   if (code.length !== 5) { $('menu-status').textContent = 'Enter the 5-letter room code.'; return; }
-  socket.emit('room:join', { code, name: playerName(), character: myCharacter }, (res) => {
-    if (!res?.ok) { $('menu-status').textContent = res?.error || 'Could not join.'; return; }
-    enterRoom(res.room);
-  });
+  const res = await request('room:join', { code, name: playerName(), character: myCharacter },
+    { status: $('menu-status'), buttons: menuButtons(), busyText: 'Joining room…' });
+  if (res.ok) enterRoom(res.room);
 };
 $('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('join-btn').click(); });
 
@@ -230,7 +273,7 @@ $('lobby-time').addEventListener('click', (e) => {
   if (sec) socket.emit('room:settings', { durationSec: sec });
 });
 $('start-btn').onclick = () => {
-  socket.emit('game:start', {}, (r) => { if (!r?.ok) $('lobby-status').textContent = r?.error; });
+  request('game:start', {}, { status: $('lobby-status'), buttons: [$('start-btn')], busyText: 'Starting…' });
 };
 function leaveRoom() {
   socket.emit('room:leave');
