@@ -47,9 +47,8 @@ app.get('/api/sound-map', (req, res) => res.json({ pandals: PANDALS, ...SOUND_MA
 let rooms; // set below, once Socket.IO exists
 app.get('/api/rooms', (req, res) => res.json(rooms.list()));
 
-// For local development, also serve the frontend if a client/ folder exists,
-// so one `npm run dev` gives you the whole game at http://localhost:3000.
-// In production the frontend is hosted on Vercel instead.
+// Serve the game itself (client/) from this same server, locally and on Render,
+// so one URL gives you the whole game.
 const clientDir = path.join(__dirname, '..', '..', 'client');
 if (fs.existsSync(clientDir)) app.use(express.static(clientDir));
 

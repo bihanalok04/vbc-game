@@ -2,8 +2,8 @@
 
 module.exports = {
   PORT: Number(process.env.PORT) || 3000,
-  // Comma-separated list of allowed frontend URLs, e.g. "https://pandal-dash.vercel.app".
-  // "*" allows any origin (fine for local development).
+  // Allowed origins for cross-site requests. The game is served from this same
+  // server on Render, so the default "*" is fine.
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '*',
 
   // Game modes. Solo rooms are private (nobody can join them).

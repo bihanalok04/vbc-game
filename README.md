@@ -247,17 +247,9 @@ Crowd zones and roads are in `server/src/soundMap.js`. Line the 3D roads up with
 
 ## Deploy
 
-**Fastest: everything on Render as one service.** The server also serves `client/`,
-so one Render URL works on any phone or computer.
-New → Web Service → connect the GitHub repo, leave the root directory empty,
-build command `npm run build`, start command `npm start`, instance type Free.
-In the frontend use `io()` with no URL.
+Everything runs on **Render as one free web service**: the Node server also serves `client/`,
+so one Render URL works on any phone or computer, and the game connects back to the same address.
 
-**Alternative, backend on Render:** New → Web Service → connect the GitHub repo.
-- Root directory: `server`
-- Build command: `npm install`
-- Start command: `npm start`
-- Environment variable: `CLIENT_ORIGIN` = your Vercel URL (e.g. `https://pandal-dash.vercel.app`)
-
-**Frontend on Vercel:** import the same repo, set the root directory to `client`, and put the
-Render URL in `SERVER_URL`.
+The easiest way is to use the `render.yaml` blueprint: Render → New → Blueprint → pick this repo → Apply.
+To set it up by hand instead: New → Web Service → this repo, root directory empty, build command
+`npm run build`, start command `npm start`, instance type Free.
