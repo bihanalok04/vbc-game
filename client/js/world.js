@@ -18,6 +18,7 @@
 // Performance: repeated things (buildings, lamps, taxis, trees, road markings)
 // use InstancedMesh, so each kind is a single draw call. This keeps phones fast.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WORLD_HALF_SIZE } from './config.js';
 
 const ROAD_WIDTH = 10;
@@ -621,29 +622,161 @@ function fairyLights(points, colors) {
   return pts;
 }
 
+// Shared idol materials (created once; gold and the face glow brighter at night)
+let IDOL_MATS = null;
+function idolMaterials(glowMaterials) {
+  if (IDOL_MATS) return IDOL_MATS;
+  IDOL_MATS = {
+    gold: new THREE.MeshStandardMaterial({ color: 0xffc23d, emissive: 0xb86b00, emissiveIntensity: 0.35, metalness: 0.85, roughness: 0.28 }),
+    face: new THREE.MeshStandardMaterial({ color: 0xf6b94a, emissive: 0xa05a00, emissiveIntensity: 0.15, roughness: 0.45 }),
+    saree: new THREE.MeshStandardMaterial({ color: 0xb3121d, roughness: 0.55, metalness: 0.1 }),
+    hair: new THREE.MeshStandardMaterial({ color: 0x0d0907, roughness: 0.6 }),
+    white: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 }),
+    red: new THREE.MeshStandardMaterial({ color: 0xd00000, emissive: 0x600000, emissiveIntensity: 0.4 }),
+    silver: new THREE.MeshStandardMaterial({ color: 0xdfe6ee, metalness: 0.95, roughness: 0.15 }),
+    chala: new THREE.MeshStandardMaterial({ color: 0x6a040f, roughness: 0.7, side: THREE.DoubleSide }),
+    lion: new THREE.MeshStandardMaterial({ color: 0xe8b45a, roughness: 0.6 }),
+    mane: new THREE.MeshStandardMaterial({ color: 0xb5541c, roughness: 0.8 }),
+    lotus: new THREE.MeshStandardMaterial({ color: 0xff8fab, roughness: 0.5 }),
+  };
+  glowMaterials.push([IDOL_MATS.gold, 0.35, 1.1], [IDOL_MATS.face, 0.15, 0.55], [IDOL_MATS.red, 0.4, 1.2]);
+  return IDOL_MATS;
+}
+
+// Durga protima in the Bengali ekchala style: golden chalchitra arch, spiked
+// mukut crown, large almond eyes with the third eye, red Banarasi saree with a
+// gold border, ten arms holding her weapons, and her lion. Parts sharing a
+// material are merged into one mesh so each idol is only ~12 draw calls.
 function idol(scale, glowMaterials) {
+  const M = idolMaterials(glowMaterials);
   const g = new THREE.Group();
-  const gold = new THREE.MeshStandardMaterial({ color: 0xffc94d, emissive: 0xff9f1c, emissiveIntensity: 0.4, metalness: 0.6, roughness: 0.35 });
-  glowMaterials.push([gold, 0.4, 1.2]);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 2.2, 10), gold);
-  body.position.y = 1.1;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10), gold);
-  head.position.y = 2.6;
-  const haloMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffd166, emissiveIntensity: 0.8, side: THREE.DoubleSide });
-  glowMaterials.push([haloMat, 0.8, 2.2]);
-  const halo = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.12, 8, 28), haloMat);
-  halo.position.set(0, 2.6, -0.3);
-  // ten arms of Durga, as a fan of thin golden rods
-  for (let i = 0; i < 10; i++) {
-    const a = -Math.PI / 2 + (i / 9) * Math.PI;
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, 0.1), gold);
-    arm.position.set(Math.cos(a) * 0.7, 1.9 + Math.sin(a) * 0.3, -0.1);
-    arm.rotation.z = a - Math.PI / 2;
-    g.add(arm);
+  const put = (geo, m, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => {
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(rx, ry, rz);
+    mesh.scale.set(sx, sy, sz);
+    g.add(mesh);
+    return mesh;
+  };
+
+  // chalchitra: the arched backdrop
+  put(new THREE.CircleGeometry(2.2, 32, 0, Math.PI), M.chala, 0, 1.4, -0.6);
+  put(new THREE.TorusGeometry(2.2, 0.12, 8, 40, Math.PI), M.gold, 0, 1.4, -0.55);
+  put(new THREE.TorusGeometry(1.7, 0.06, 6, 36, Math.PI), M.gold, 0, 1.4, -0.55);
+  for (let i = 0; i <= 14; i++) {
+    const a = (i / 14) * Math.PI;
+    put(new THREE.ConeGeometry(0.1, 0.4, 6), M.gold, Math.cos(a) * 2.4, 1.4 + Math.sin(a) * 2.4, -0.55, 0, 0, a - Math.PI / 2);
   }
-  g.add(body, head, halo);
-  g.scale.setScalar(scale);
-  return g;
+
+  // saree (flared, red with gold borders) and torso
+  put(new THREE.CylinderGeometry(0.42, 0.8, 1.4, 20), M.saree, 0, 0.7, 0);
+  put(new THREE.CylinderGeometry(0.81, 0.82, 0.1, 20), M.gold, 0, 0.08, 0);
+  put(new THREE.CylinderGeometry(0.62, 0.63, 0.06, 20), M.gold, 0, 0.6, 0);
+  put(new THREE.BoxGeometry(0.16, 1.3, 0.05), M.gold, 0.18, 0.72, 0.62, -0.25, 0, 0); // pleats
+  put(new THREE.CylinderGeometry(0.34, 0.42, 0.75, 16), M.saree, 0, 1.75, 0);
+  put(new THREE.BoxGeometry(0.2, 0.8, 0.5), M.saree, 0.22, 1.8, 0.05, 0, 0, -0.45); // anchal over the shoulder
+  put(new THREE.TorusGeometry(0.3, 0.05, 6, 20), M.gold, 0, 2.02, 0.12, 1.25, 0, 0); // necklace
+  put(new THREE.TorusGeometry(0.22, 0.04, 6, 20), M.gold, 0, 1.85, 0.25, 1.35, 0, 0);
+
+  // head: golden face, flowing black hair, big Bengali eyes, third eye, crown
+  put(new THREE.SphereGeometry(0.62, 16, 12), M.hair, 0, 2.45, -0.25, 0, 0, 0, 1.05, 1.25, 0.6);
+  put(new THREE.SphereGeometry(0.36, 20, 16), M.face, 0, 2.48, 0.05, 0, 0, 0, 1, 1.12, 1);
+  for (const s of [-1, 1]) {
+    put(new THREE.SphereGeometry(0.1, 12, 8), M.white, s * 0.14, 2.52, 0.33, 0, 0, s * -0.25, 1.5, 0.75, 0.5);
+    put(new THREE.SphereGeometry(0.05, 10, 8), M.dark, s * 0.14, 2.52, 0.38);
+    put(new THREE.BoxGeometry(0.2, 0.025, 0.02), M.dark, s * 0.15, 2.64, 0.34, 0, 0, s * -0.3); // brow
+    put(new THREE.TorusGeometry(0.06, 0.018, 6, 12), M.gold, s * 0.36, 2.38, 0.05, 0, Math.PI / 2, 0); // earrings
+  }
+  put(new THREE.SphereGeometry(0.06, 10, 8), M.white, 0, 2.74, 0.33, 0, 0, Math.PI / 2, 1.4, 0.7, 0.5); // third eye
+  put(new THREE.SphereGeometry(0.03, 8, 6), M.dark, 0, 2.74, 0.36);
+  put(new THREE.SphereGeometry(0.035, 8, 6), M.red, 0, 2.62, 0.38); // bindi
+  put(new THREE.TorusGeometry(0.05, 0.012, 6, 12, Math.PI), M.red, 0, 2.33, 0.37, 0, 0, Math.PI); // lips
+  // mukut: gold band with a fan of spikes, tallest in the middle
+  put(new THREE.CylinderGeometry(0.36, 0.38, 0.18, 20), M.gold, 0, 2.82, 0);
+  for (let i = -4; i <= 4; i++) {
+    const h = 0.5 + (4 - Math.abs(i)) * 0.14;
+    put(new THREE.ConeGeometry(0.09, h, 6), M.gold, i * 0.085, 2.9 + h / 2, 0.08 - Math.abs(i) * 0.015, 0, 0, -i * 0.12);
+  }
+  put(new THREE.SphereGeometry(0.06, 8, 6), M.red, 0, 3.05, 0.2); // jewel
+
+  // ten arms fanned out behind the shoulders, each holding a weapon
+  const weapons = ['trishul', 'sword', 'chakra', 'bow', 'lotus', 'conch', 'mace', 'sword', 'chakra', 'lotus'];
+  for (let i = 0; i < 10; i++) {
+    const side = i < 5 ? -1 : 1;
+    const k = i % 5;
+    const a = side * (0.35 + k * 0.32); // spread angle from vertical-down
+    const ox = side * 0.38;
+    const oy = 2.0;
+    const len = 1.05;
+    const hx = ox + Math.sin(a) * len;
+    const hy = oy - Math.cos(a) * len * 0.3 + k * 0.22;
+    const midx = (ox + hx) / 2;
+    const midy = (oy + hy) / 2;
+    const ang = Math.atan2(hy - oy, hx - ox);
+    put(new THREE.CylinderGeometry(0.07, 0.085, Math.hypot(hx - ox, hy - oy), 8), M.face, midx, midy, -0.1 - k * 0.03, 0, 0, ang - Math.PI / 2);
+    put(new THREE.TorusGeometry(0.08, 0.02, 6, 10), M.gold, hx - Math.cos(ang) * 0.1, hy - Math.sin(ang) * 0.1, -0.1 - k * 0.03, 0, Math.PI / 2, ang);
+    put(new THREE.SphereGeometry(0.08, 8, 6), M.face, hx, hy, -0.1 - k * 0.03);
+    const wz = -0.08 - k * 0.03;
+    switch (weapons[i]) {
+      case 'trishul':
+        put(new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6), M.gold, hx, hy - 0.2, wz + 0.2, 0.35, 0, 0);
+        for (const t of [-1, 0, 1]) put(new THREE.ConeGeometry(0.05, 0.35, 6), M.silver, hx + t * 0.12, hy + 1.1, wz - 0.2, 0.35, 0, -t * 0.25);
+        break;
+      case 'sword':
+        put(new THREE.BoxGeometry(0.07, 0.9, 0.02), M.silver, hx, hy + 0.5, wz);
+        put(new THREE.BoxGeometry(0.25, 0.05, 0.05), M.gold, hx, hy + 0.06, wz);
+        break;
+      case 'chakra':
+        put(new THREE.TorusGeometry(0.2, 0.04, 6, 18), M.gold, hx, hy + 0.28, wz);
+        break;
+      case 'bow':
+        put(new THREE.TorusGeometry(0.42, 0.025, 6, 18, Math.PI), M.gold, hx, hy, wz, 0, 0, side > 0 ? -Math.PI / 2 : Math.PI / 2);
+        break;
+      case 'lotus':
+        for (let p = 0; p < 6; p++) put(new THREE.SphereGeometry(0.09, 8, 6), M.lotus, hx + Math.cos(p) * 0.08, hy + 0.15, wz + Math.sin(p) * 0.08, 0, 0, 0, 0.6, 1.4, 0.6);
+        break;
+      case 'conch':
+        put(new THREE.ConeGeometry(0.1, 0.32, 10), M.white, hx, hy + 0.18, wz, 0, 0, 0.6);
+        break;
+      case 'mace':
+        put(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), M.gold, hx, hy + 0.25, wz);
+        put(new THREE.SphereGeometry(0.14, 10, 8), M.gold, hx, hy + 0.6, wz);
+        break;
+      default:
+        break;
+    }
+  }
+
+  // the lion (her vahana), at her right side
+  const lx = 1.0;
+  put(new THREE.CapsuleGeometry(0.28, 0.8, 4, 10), M.lion, lx, 0.55, 0.35, 0, 0, Math.PI / 2);
+  for (const [dx, dz] of [[-0.35, 0.15], [-0.35, -0.15], [0.35, 0.15], [0.35, -0.15]]) {
+    put(new THREE.CylinderGeometry(0.08, 0.07, 0.45, 8), M.lion, lx + dx, 0.22, 0.35 + dz);
+  }
+  put(new THREE.SphereGeometry(0.36, 14, 10), M.mane, lx - 0.62, 0.85, 0.4);
+  put(new THREE.SphereGeometry(0.22, 12, 10), M.lion, lx - 0.72, 0.88, 0.58);
+  for (const s of [-1, 1]) put(new THREE.SphereGeometry(0.035, 6, 4), M.dark, lx - 0.8 + s * 0.08, 0.95, 0.76);
+  put(new THREE.CylinderGeometry(0.03, 0.02, 0.6, 6), M.lion, lx + 0.65, 0.75, 0.35, 0, 0, -0.9); // tail
+
+  // merge parts that share a material into single meshes
+  g.updateMatrixWorld(true);
+  const byMat = new Map();
+  for (const mesh of g.children) {
+    const geo = mesh.geometry.clone().applyMatrix4(mesh.matrix);
+    if (!byMat.has(mesh.material)) byMat.set(mesh.material, []);
+    byMat.get(mesh.material).push(geo);
+  }
+  const out = new THREE.Group();
+  let merged = true;
+  for (const [m, geos] of byMat) {
+    const one = mergeGeometries(geos, false);
+    if (!one) { merged = false; break; }
+    out.add(new THREE.Mesh(one, m));
+  }
+  const result = merged ? out : g;
+  result.scale.setScalar(scale * 1.05);
+  return result;
 }
 
 function buildRegularPandal(p, theme, glowMaterials) {
