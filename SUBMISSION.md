@@ -3,7 +3,7 @@
 ## 1. Links
 
 - GitHub repo: https://github.com/bihanalok04/vbc-game
-- Live link: **[add after Bihan deploys]**. Also paste it at the top of README.md.
+- Live link: https://vbc-game.onrender.com (already at the top of README.md)
 - Demo video: **[add after recording]**
 
 ## 2. What it does (under 280 characters, pick one at 4:00)

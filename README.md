@@ -4,7 +4,8 @@
 Race your friends through a 3D Kolkata to find pandals before time runs out. It works on
 phones and laptops, with no install and no sign-in.
 
-▶ **Play now: [LIVE LINK — add after deploy]**
+▶ **Play now: https://vbc-game.onrender.com**
+*(Free hosting sleeps when idle, so the first load can take up to a minute. Please wait and refresh once.)*
 🎬 **Demo video: [VIDEO LINK]**
 
 Built at Vibe Coders Hackathon Edition 3, Kolkata.
