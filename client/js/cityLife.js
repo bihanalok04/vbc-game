@@ -38,7 +38,7 @@ const CHARACTERS = [
   { look: 'dhaki', home: [60, -18], roam: 4 }, // drummer near Santosh Mitra Square
   { look: 'mashima', home: [-112, -98], roam: 8 }, // aunty in red-bordered white saree
   { look: 'purohit', home: [40, 82], roam: 4 }, // priest near Deshapriya Park
-  { look: 'phuchkawala', home: [8.5, -50], roam: 2 }, // at the phuchka stall
+  { look: 'phuchkawala', home: [42, -8.8], roam: 1.5 }, // at the phuchka stall on the east-west road
   { look: 'police', home: [0, -80], roam: 6 }, // Kolkata traffic police in white
   { look: 'student', home: [-40, -48], roam: 10 }, // College Street student with jhola
   { look: 'kid', home: [-20, 108], roam: 7 }, // kid with a balloon
