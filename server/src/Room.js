@@ -1,8 +1,11 @@
-const config = require('./config');
+﻿const config = require('./config');
 const { PANDALS, SPAWN_POINTS, getPandal } = require('./pandals');
 const { NO_EFFECTS, pickRandomEventType } = require('./events');
 const { SOUND_MAP } = require('./soundMap');
 const { timeOfDay } = require('./dayCycle');
+
+// Playable characters (must match client/js/cityLife.js)
+const CHARACTER_LOOKS = ['motaBabu', 'teen', 'mashima', 'purohit', 'phuchkawala', 'jhalmuriwala', 'student', 'kid'];
 
 function validDurationSec(sec) {
   const n = Number(sec);
@@ -71,6 +74,7 @@ class Room {
     return {
       id: p.id,
       name: p.name,
+      character: p.character,
       color: p.color,
       score: p.score,
       discovered: [...p.discovered],
@@ -113,10 +117,11 @@ class Room {
 
   // ---------- players joining and leaving ----------
 
-  addPlayer(socket, name) {
+  addPlayer(socket, name, character) {
     const player = {
       id: socket.id,
       name,
+      character: CHARACTER_LOOKS.includes(character) ? character : CHARACTER_LOOKS[this.players.size % CHARACTER_LOOKS.length],
       color: this.nextColor(),
       score: 0,
       discovered: new Set(),

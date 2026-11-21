@@ -1,4 +1,4 @@
-const path = require('path');
+﻿const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const express = require('express');
@@ -59,7 +59,7 @@ app.get('/', (req, res) => {
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#14110f;color:#f3e9dc;
 font:16px/1.5 system-ui,sans-serif;text-align:center;padding:16px}a{color:#f4a261}</style></head>
 <body><main><h1>Pandal Dash</h1><p>The game server is live. The 3D game is coming soon.</p>
-<p><a href="/audio-test.html">Try the sound demo</a> · <a href="/api/pandals">Pandal list</a></p></main></body></html>`);
+<p><a href="/audio-test.html">Try the sound demo</a> Â· <a href="/api/pandals">Pandal list</a></p></main></body></html>`);
 });
 
 // ---------- Real-time (Socket.IO) ----------
@@ -87,7 +87,7 @@ io.on('connection', (socket) => {
   // Solo: create, then send game:start straight away.
   socket.on('room:create', (data, cb) => {
     const room = rooms.createRoom({ mode: data?.mode, durationSec: data?.durationSec });
-    const player = rooms.join(socket, room, cleanName(data?.name));
+    const player = rooms.join(socket, room, cleanName(data?.name), data?.character);
     reply(cb, { ok: true, playerId: player.id, room: room.publicState() });
   });
 
@@ -97,7 +97,7 @@ io.on('connection', (socket) => {
     if (room.mode === 'solo') return reply(cb, { ok: false, error: 'That is a single-player game.' });
     if (room.isFull()) return reply(cb, { ok: false, error: 'Room is full.' });
     if (room.state !== 'lobby') return reply(cb, { ok: false, error: 'That game has already started.' });
-    const player = rooms.join(socket, room, cleanName(data?.name));
+    const player = rooms.join(socket, room, cleanName(data?.name), data?.character);
     reply(cb, { ok: true, playerId: player.id, room: room.publicState() });
   });
 

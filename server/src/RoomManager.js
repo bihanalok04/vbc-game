@@ -1,4 +1,4 @@
-const config = require('./config');
+﻿const config = require('./config');
 const Room = require('./Room');
 
 // No I, O, 0 or 1 so codes are easy to read out loud and type.
@@ -39,9 +39,9 @@ class RoomManager {
     return code ? this.rooms.get(code) || null : null;
   }
 
-  join(socket, room, name) {
+  join(socket, room, name, character) {
     this.leave(socket.id); // a socket can only be in one room at a time
-    const player = room.addPlayer(socket, name);
+    const player = room.addPlayer(socket, name, character);
     this.playerRoom.set(socket.id, room.code);
     return player;
   }
