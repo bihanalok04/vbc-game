@@ -19,6 +19,7 @@
 // use InstancedMesh, so each kind is a single draw call. This keeps phones fast.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { WORLD_HALF_SIZE } from './config.js';
 
 const ROAD_WIDTH = 10;
@@ -256,7 +257,7 @@ export function buildWorld(scene, data = {}) {
   });
   asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
   const roadMat = new THREE.MeshStandardMaterial({ color: 0xb0aca8, map: asphalt, roughness: 0.95 });
-  const dashMat = new THREE.MeshStandardMaterial({ color: 0xf1f1e6 });
+  const dashMat = new THREE.MeshStandardMaterial({ color: 0xd9d6cc, roughness: 0.9 });
   const dashes = [];
   const kerbs = [];
   for (const r of roads) {
@@ -289,7 +290,7 @@ export function buildWorld(scene, data = {}) {
     }
     if (r.id === 'central-avenue') {
       // Kolkata tram tracks
-      const railMat = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, metalness: 0.8, roughness: 0.3 });
+      const railMat = new THREE.MeshStandardMaterial({ color: 0x5f5a55, metalness: 0.45, roughness: 0.6 });
       for (const off of [-2.2, -0.9, 0.9, 2.2]) {
         const rail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, len), railMat);
         rail.position.set(r.x1 + off, 0.06, (r.z1 + r.z2) / 2);
@@ -384,7 +385,8 @@ export function buildWorld(scene, data = {}) {
       buildings.push({ x, z, w, d, h, color: BUILDING_COLORS[Math.floor(rand() * BUILDING_COLORS.length)] });
     }
   }
-  const buildingMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), buildingMat, Math.max(1, buildings.length));
+  // softly rounded edges give the chunky, stylised look
+  const buildingMesh = new THREE.InstancedMesh(new RoundedBoxGeometry(1, 1, 1, 2, 0.035), buildingMat, Math.max(1, buildings.length));
   const roofMesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshStandardMaterial({ color: 0x7a6e62, roughness: 1 }),
@@ -402,7 +404,35 @@ export function buildWorld(scene, data = {}) {
   });
   buildingMesh.count = buildings.length;
   roofMesh.count = buildings.length;
+  buildingMesh.castShadow = buildingMesh.receiveShadow = true;
   scene.add(buildingMesh, roofMesh);
+
+  // Old North-Kolkata details: a projecting cornice at the top, a floor band halfway
+  // up and a darker plinth at street level. Lighter/darker tints of each wall colour.
+  const trimGeo = new RoundedBoxGeometry(1, 1, 1, 2, 0.12);
+  const trimMat = new THREE.MeshStandardMaterial({ roughness: 0.85 });
+  const corniceMesh = new THREE.InstancedMesh(trimGeo, trimMat, Math.max(1, buildings.length * 2));
+  const plinthMesh = new THREE.InstancedMesh(trimGeo, new THREE.MeshStandardMaterial({ roughness: 0.95 }), Math.max(1, buildings.length));
+  const tint = new THREE.Color();
+  const trimScale = new THREE.Vector3();
+  buildings.forEach((b, i) => {
+    trimScale.set(b.w + 0.7, 0.55, b.d + 0.7);
+    m.compose(v.set(b.x, b.h - 0.2, b.z), q.identity(), trimScale);
+    corniceMesh.setMatrixAt(i * 2, m);
+    corniceMesh.setColorAt(i * 2, tint.setHex(b.color).lerp(new THREE.Color(0xfff8ec), 0.55));
+    trimScale.set(b.w + 0.35, 0.3, b.d + 0.35);
+    m.compose(v.set(b.x, Math.max(4, Math.floor(b.h / 2 / 4) * 4), b.z), q.identity(), trimScale);
+    corniceMesh.setMatrixAt(i * 2 + 1, m);
+    corniceMesh.setColorAt(i * 2 + 1, tint.setHex(b.color).lerp(new THREE.Color(0xfff8ec), 0.45));
+    trimScale.set(b.w + 0.25, 1.1, b.d + 0.25);
+    m.compose(v.set(b.x, 0.55, b.z), q.identity(), trimScale);
+    plinthMesh.setMatrixAt(i, m);
+    plinthMesh.setColorAt(i, tint.setHex(b.color).multiplyScalar(0.6));
+  });
+  corniceMesh.count = buildings.length * 2;
+  plinthMesh.count = buildings.length;
+  corniceMesh.castShadow = true;
+  scene.add(corniceMesh, plinthMesh);
 
   // ---------- balconies with green railings, facing the street ----------
   const balconies = [];
