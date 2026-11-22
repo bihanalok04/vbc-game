@@ -10,6 +10,7 @@ import { setupTouchControls } from './touch.js';
 import { PandalAudio } from './audio.js';
 import { buildCityLife } from './cityLife.js';
 import { buildCharacter, animateCharacter, PLAYABLE } from './characters.js';
+import { setupGraphics } from './graphics.js';
 
 // ---------- renderer, scene, lights ----------
 const canvas = document.getElementById('game');
@@ -43,6 +44,9 @@ sun.shadow.camera.far = 250;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.05;
 scene.add(sun, sun.target);
+// Stylised look: painted sky, environment light, and (on laptops) ambient
+// occlusion, bloom, colour grading and smooth edges
+const gfx = setupGraphics(renderer, scene, camera, { phone: IS_PHONE });
 
 // Load the map with a loading screen; on failure show the error and a Retry button.
 async function loadMap() {
@@ -647,13 +651,13 @@ renderer.setAnimationLoop(() => {
       $('recenter-btn').classList.toggle('hidden', distanceToRoad(s.x, s.z) <= ROAD_HALF_WIDTH + 0.5);
     }
   }
-  renderer.render(scene, camera);
+  gfx.render();
 });
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  gfx.setSize(window.innerWidth, window.innerHeight);
 });
 
 showScreen('menu');
