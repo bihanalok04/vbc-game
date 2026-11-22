@@ -11,6 +11,12 @@
 // Everything is placed from fixed data, so every player sees the same stalls
 // and characters (important for multiplayer).
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// Merge several shapes into one (so a crowd body part is a single instanced mesh).
+function mergeParts(geos) {
+  return mergeGeometries(geos, false) || geos[0];
+}
 
 // ---------------------------------------------------------------------------
 // Character names: fill these in (in the same order as CHARACTERS below).
@@ -368,10 +374,40 @@ function buildCrowd(scene, world, data) {
   });
 
   const count = Math.max(1, people.length);
-  const lowerMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.3, 0.45, 1.0, 8), new THREE.MeshStandardMaterial({ roughness: 0.85 }), count);
-  const upperMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.26, 0.32, 0.75, 8), new THREE.MeshStandardMaterial({ roughness: 0.85 }), count);
-  const headMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshStandardMaterial({ color: 0x9a6338, roughness: 0.8 }), count);
-  const hairMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.23, 8, 6, 0, Math.PI * 2, 0, Math.PI / 1.8), new THREE.MeshStandardMaterial({ color: 0x15100c }), count);
+  const women = people.filter((p) => p.woman);
+  const wCount = Math.max(1, women.length);
+  const cloth = () => new THREE.MeshStandardMaterial({ roughness: 0.8 });
+  const SKINS = [0x8d5524, 0xa0673a, 0xc68642, 0xb5794a, 0x7a4a24];
+  const BORDERS = [0xc1121f, 0xffd166, 0x7b2cbf, 0x2a9d8f, 0xffffff];
+
+  // body parts, all built at a person's local origin (feet at y = 0)
+  const lowerGeo = new THREE.CylinderGeometry(0.24, 0.42, 1.0, 14); lowerGeo.translate(0, 0.5, 0);
+  const borderGeo = new THREE.CylinderGeometry(0.425, 0.43, 0.12, 14); borderGeo.translate(0, 0.08, 0);
+  const torsoGeo = new THREE.CapsuleGeometry(0.23, 0.42, 6, 12); torsoGeo.translate(0, 1.32, 0);
+  // both arms (slightly out from the body) merged into one shape
+  const armL = new THREE.CapsuleGeometry(0.075, 0.55, 4, 8); armL.rotateZ(0.12); armL.translate(-0.3, 1.22, 0.02);
+  const armR = new THREE.CapsuleGeometry(0.075, 0.55, 4, 8); armR.rotateZ(-0.12); armR.translate(0.3, 1.22, 0.02);
+  const armsGeo = mergeParts([armL, armR]);
+  const handL = new THREE.SphereGeometry(0.075, 8, 6); handL.translate(-0.34, 0.86, 0.04);
+  const handR = new THREE.SphereGeometry(0.075, 8, 6); handR.translate(0.34, 0.86, 0.04);
+  const handsGeo = mergeParts([handL, handR]);
+  const headGeo = new THREE.SphereGeometry(0.2, 14, 12); headGeo.translate(0, 1.88, 0);
+  const hairGeo = new THREE.SphereGeometry(0.21, 14, 8, 0, Math.PI * 2, 0, Math.PI / 1.9); hairGeo.translate(0, 1.91, -0.015);
+  const bunGeo = new THREE.SphereGeometry(0.1, 10, 8); bunGeo.translate(0, 1.9, -0.2);
+  const anchalGeo = new THREE.BoxGeometry(0.1, 0.75, 0.42); anchalGeo.rotateZ(-0.5); anchalGeo.translate(0.12, 1.32, 0.02);
+
+  const lowerMesh = new THREE.InstancedMesh(lowerGeo, cloth(), count);
+  const borderMesh = new THREE.InstancedMesh(borderGeo, cloth(), count);
+  const upperMesh = new THREE.InstancedMesh(torsoGeo, cloth(), count);
+  const armsMesh = new THREE.InstancedMesh(armsGeo, cloth(), count);
+  const handsMesh = new THREE.InstancedMesh(handsGeo, new THREE.MeshStandardMaterial({ roughness: 0.75 }), count);
+  const headMesh = new THREE.InstancedMesh(headGeo, new THREE.MeshStandardMaterial({ roughness: 0.75 }), count);
+  const hairMesh = new THREE.InstancedMesh(hairGeo, new THREE.MeshStandardMaterial({ color: 0x15100c, roughness: 0.6 }), count);
+  const bunMesh = new THREE.InstancedMesh(bunGeo, new THREE.MeshStandardMaterial({ color: 0x15100c, roughness: 0.6 }), wCount);
+  const anchalMesh = new THREE.InstancedMesh(anchalGeo, cloth(), wCount);
+  const allMeshes = [lowerMesh, borderMesh, upperMesh, armsMesh, handsMesh, headMesh, hairMesh];
+  const womenMeshes = [bunMesh, anchalMesh];
+
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
@@ -379,9 +415,15 @@ function buildCrowd(scene, world, data) {
   const sc = new THREE.Vector3();
   const col = new THREE.Color();
   people.forEach((p, i) => {
+    const skin = SKINS[Math.floor(rand() * SKINS.length)];
     lowerMesh.setColorAt(i, col.setHex(p.lower));
+    borderMesh.setColorAt(i, col.setHex(p.woman ? BORDERS[Math.floor(rand() * BORDERS.length)] : p.lower));
     upperMesh.setColorAt(i, col.setHex(p.upper));
+    armsMesh.setColorAt(i, col.setHex(p.woman ? skin : p.upper)); // sarees: bare arms; panjabis: sleeves
+    handsMesh.setColorAt(i, col.setHex(skin));
+    headMesh.setColorAt(i, col.setHex(skin));
   });
+  women.forEach((p, i) => anchalMesh.setColorAt(i, col.setHex(p.lower)));
 
   const BODY = 0.38; // how wide a person is, for bumping into them
   let playerX = 1e9;
@@ -432,25 +474,24 @@ function buildCrowd(scene, world, data) {
     return false;
   }
 
+  const womanIndex = new Map(women.map((p, i) => [p, i]));
   function place(t, dt = 0) {
     if (dt > 0) walk(dt);
     people.forEach((p, i) => {
-      const sway = Math.sin(t * (p.moving ? 7 : 1.6) + p.phase) * (p.moving ? 0.08 : 0.04);
-      const bob = Math.abs(Math.sin(t * (p.moving ? 7 : 2.2) + p.phase)) * (p.moving ? 0.08 : 0.04);
-      q.setFromEuler(e.set(0, p.rot + sway * 3, sway));
+      const sway = Math.sin(t * (p.moving ? 7 : 1.6) + p.phase) * (p.moving ? 0.06 : 0.03);
+      const bob = Math.abs(Math.sin(t * (p.moving ? 7 : 2.2) + p.phase)) * (p.moving ? 0.07 : 0.03);
+      q.setFromEuler(e.set(0, p.rot + sway * 2, sway));
       sc.set(p.s, p.s, p.s);
-      m.compose(v.set(p.x, (0.5 + bob) * p.s, p.z), q, sc);
-      lowerMesh.setMatrixAt(i, m);
-      m.compose(v.set(p.x, (1.35 + bob) * p.s, p.z), q, sc);
-      upperMesh.setMatrixAt(i, m);
-      m.compose(v.set(p.x, (1.92 + bob) * p.s, p.z), q, sc);
-      headMesh.setMatrixAt(i, m);
-      m.compose(v.set(p.x, (1.97 + bob) * p.s, p.z), q, sc);
-      hairMesh.setMatrixAt(i, m);
+      // every part shares the same transform, since they're all built around the feet
+      m.compose(v.set(p.x, bob * p.s, p.z), q, sc);
+      for (const mesh of allMeshes) mesh.setMatrixAt(i, m);
+      const w = womanIndex.get(p);
+      if (w !== undefined) for (const mesh of womenMeshes) mesh.setMatrixAt(w, m);
     });
-    for (const mesh of [lowerMesh, upperMesh, headMesh, hairMesh]) mesh.instanceMatrix.needsUpdate = true;
+    for (const mesh of [...allMeshes, ...womenMeshes]) mesh.instanceMatrix.needsUpdate = true;
   }
-  [lowerMesh, upperMesh, headMesh, hairMesh].forEach((mesh) => { mesh.count = people.length; scene.add(mesh); });
+  allMeshes.forEach((mesh) => { mesh.count = people.length; mesh.castShadow = true; scene.add(mesh); });
+  womenMeshes.forEach((mesh) => { mesh.count = women.length; mesh.castShadow = true; scene.add(mesh); });
   place(0);
   return {
     count: people.length,
@@ -549,7 +590,26 @@ function buildBengaliTouches(scene, world, data) {
   const garlandGeo = new THREE.BufferGeometry();
   garlandGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
   garlandGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  scene.add(new THREE.Points(garlandGeo, new THREE.PointsMaterial({ size: 0.42, vertexColors: true })));
+  // round, ruffled marigold flowers instead of square dots
+  const flower = document.createElement('canvas');
+  flower.width = flower.height = 64;
+  const fg = flower.getContext('2d');
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    fg.fillStyle = i % 2 ? '#ffffff' : '#f2f2f2';
+    fg.beginPath();
+    fg.ellipse(32 + Math.cos(a) * 14, 32 + Math.sin(a) * 14, 12, 9, a, 0, Math.PI * 2);
+    fg.fill();
+  }
+  const fgrad = fg.createRadialGradient(32, 32, 2, 32, 32, 30);
+  fgrad.addColorStop(0, 'rgba(120,60,0,0.55)');
+  fgrad.addColorStop(1, 'rgba(0,0,0,0)');
+  fg.fillStyle = fgrad;
+  fg.fillRect(0, 0, 64, 64);
+  const flowerTex = new THREE.CanvasTexture(flower);
+  scene.add(new THREE.Points(garlandGeo, new THREE.PointsMaterial({
+    size: 0.3, vertexColors: true, map: flowerTex, alphaTest: 0.4, transparent: false,
+  })));
 
   // Kash flowers (the white feathery grass of Sharad) along the riverbank
   const kashCount = 140;
