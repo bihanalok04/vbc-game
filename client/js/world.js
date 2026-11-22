@@ -127,12 +127,42 @@ function buildingTextures(rand) {
       g.fillStyle = 'rgba(0,0,0,0.08)'; // floor line
       g.fillRect(0, r * (h / rows), w, 3);
       for (let c = 0; c < cols; c++) {
-        const x = c * (w / cols) + 8;
-        const y = r * (h / rows) + 8;
-        g.fillStyle = '#3d5a40'; // green wooden shutters, very Kolkata
-        g.fillRect(x, y, w / cols - 16, h / rows - 14);
-        g.fillStyle = '#2b2b2b';
-        g.fillRect(x + 4, y + 4, w / cols - 24, h / rows - 22);
+        // North-Kolkata window: white lime frame, arched top, dark-teal glass,
+        // and green louvered shutters (some open, some shut)
+        const cw = w / cols;
+        const chh = h / rows;
+        const x = c * cw + 9;
+        const y = r * chh + 9;
+        const ww = cw - 18;
+        const wh = chh - 16;
+        g.fillStyle = 'rgba(255,250,240,0.85)'; // frame
+        g.beginPath();
+        g.moveTo(x - 2, y + wh + 2);
+        g.lineTo(x - 2, y + ww / 2);
+        g.arc(x + ww / 2, y + ww / 2, ww / 2 + 2, Math.PI, 0);
+        g.lineTo(x + ww + 2, y + wh + 2);
+        g.fill();
+        const shut = rand() < 0.45;
+        g.fillStyle = shut ? '#3f6b4a' : '#2c3e44';
+        g.beginPath();
+        g.moveTo(x, y + wh);
+        g.lineTo(x, y + ww / 2);
+        g.arc(x + ww / 2, y + ww / 2, ww / 2, Math.PI, 0);
+        g.lineTo(x + ww, y + wh);
+        g.fill();
+        if (shut) {
+          g.fillStyle = 'rgba(0,0,0,0.25)'; // louvres
+          for (let ly = y + ww / 2; ly < y + wh; ly += 3) g.fillRect(x + 1, ly, ww - 2, 1);
+          g.fillRect(x + ww / 2 - 0.5, y + 2, 1, wh - 2);
+        } else {
+          g.fillStyle = 'rgba(160,200,210,0.35)'; // glass glint
+          g.fillRect(x + 2, y + ww / 2, ww / 3, wh - ww / 2 - 2);
+          g.fillStyle = '#3f6b4a'; // shutters folded open on both sides
+          g.fillRect(x - 7, y + ww / 2, 5, wh - ww / 2);
+          g.fillRect(x + ww + 2, y + ww / 2, 5, wh - ww / 2);
+        }
+        g.fillStyle = 'rgba(255,250,240,0.9)'; // sill
+        g.fillRect(x - 4, y + wh, ww + 8, 3);
       }
     }
   });
@@ -197,17 +227,62 @@ export function buildWorld(scene, data = {}) {
   scene.add(ghat);
 
   // ---------- roads, lane markings, tram tracks ----------
-  const roadMat = new THREE.MeshStandardMaterial({ color: 0x2f2f33, roughness: 0.95 });
+  // worn Kolkata asphalt: grey with patches, cracks and darker tyre tracks
+  const asphalt = makeCanvasTexture(256, 256, (g, w, h) => {
+    g.fillStyle = '#5a5856';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2500; i++) {
+      const s = 40 + rand() * 60;
+      g.fillStyle = `rgba(${s},${s},${s},0.35)`;
+      g.fillRect(rand() * w, rand() * h, 2, 2);
+    }
+    for (let i = 0; i < 5; i++) {
+      g.fillStyle = `rgba(30,30,32,${0.25 + rand() * 0.2})`; // patch repairs
+      g.fillRect(rand() * w, rand() * h, 30 + rand() * 60, 20 + rand() * 40);
+    }
+    g.strokeStyle = 'rgba(20,20,20,0.5)'; // cracks
+    g.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      g.beginPath();
+      let x = rand() * w;
+      let y = rand() * h;
+      g.moveTo(x, y);
+      for (let k = 0; k < 6; k++) { x += (rand() - 0.5) * 30; y += rand() * 20; g.lineTo(x, y); }
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(20,20,22,0.25)'; // tyre tracks
+    g.fillRect(w * 0.22, 0, w * 0.12, h);
+    g.fillRect(w * 0.66, 0, w * 0.12, h);
+  });
+  asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
+  const roadMat = new THREE.MeshStandardMaterial({ color: 0xb0aca8, map: asphalt, roughness: 0.95 });
   const dashMat = new THREE.MeshStandardMaterial({ color: 0xf1f1e6 });
   const dashes = [];
+  const kerbs = [];
   for (const r of roads) {
     const len = Math.hypot(r.x2 - r.x1, r.z2 - r.z1);
     const angle = Math.atan2(r.x2 - r.x1, r.z2 - r.z1);
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_WIDTH, len), roadMat);
+    const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, len);
+    const uv = roadGeo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * (len / ROAD_WIDTH)); // tile along the road
+    const road = new THREE.Mesh(roadGeo, roadMat);
     road.rotation.x = -Math.PI / 2;
     road.rotation.z = -angle;
     road.position.set((r.x1 + r.x2) / 2, 0.02, (r.z1 + r.z2) / 2);
+    road.receiveShadow = true;
     scene.add(road);
+    // kerb blocks along both edges, skipping junctions
+    const nx = -(r.z2 - r.z1) / len;
+    const nz = (r.x2 - r.x1) / len;
+    for (let d = 1; d < len; d += 2) {
+      const t = d / len;
+      const cx = r.x1 + (r.x2 - r.x1) * t;
+      const cz = r.z1 + (r.z2 - r.z1) * t;
+      if (roads.some((o) => o !== r && distToSegment(cx, cz, o) < ROAD_WIDTH / 2 + 1)) continue;
+      for (const side of [-1, 1]) {
+        kerbs.push({ x: cx + nx * side * (ROAD_WIDTH / 2 + 0.2), z: cz + nz * side * (ROAD_WIDTH / 2 + 0.2), angle, yellow: Math.floor(d / 2) % 2 === 0 });
+      }
+    }
     for (let d = 3; d < len; d += 8) {
       const t = d / len;
       dashes.push({ x: r.x1 + (r.x2 - r.x1) * t, z: r.z1 + (r.z2 - r.z1) * t, angle });
@@ -236,6 +311,48 @@ export function buildWorld(scene, data = {}) {
   });
   dashMesh.count = dashes.length;
   scene.add(dashMesh);
+
+  // kerbs painted in alternating black and yellow, as on Kolkata's main roads
+  const kerbMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.4, 0.22, 1.95), new THREE.MeshStandardMaterial({ roughness: 0.8 }), Math.max(1, kerbs.length));
+  const kc = new THREE.Color();
+  kerbs.forEach((k, i) => {
+    q.setFromEuler(e.set(0, k.angle, 0));
+    m.compose(v.set(k.x, 0.11, k.z), q, one);
+    kerbMesh.setMatrixAt(i, m);
+    kerbMesh.setColorAt(i, kc.setHex(k.yellow ? 0xf2c200 : 0x1e1e1e));
+  });
+  kerbMesh.count = kerbs.length;
+  scene.add(kerbMesh);
+
+  // zebra crossings on every side of every junction
+  const zebras = [];
+  for (let i = 0; i < roads.length; i++) {
+    for (let j = i + 1; j < roads.length; j++) {
+      const a = roads[i];
+      const b = roads[j];
+      const aVert = Math.abs(a.x2 - a.x1) < Math.abs(a.z2 - a.z1);
+      const bVert = Math.abs(b.x2 - b.x1) < Math.abs(b.z2 - b.z1);
+      if (aVert === bVert) continue;
+      const vr = aVert ? a : b;
+      const hr = aVert ? b : a;
+      const ix = vr.x1;
+      const iz = hr.z1;
+      if (iz < Math.min(vr.z1, vr.z2) || iz > Math.max(vr.z1, vr.z2) || ix < Math.min(hr.x1, hr.x2) || ix > Math.max(hr.x1, hr.x2)) continue;
+      const off = ROAD_WIDTH / 2 + 2;
+      for (let s = -4; s <= 4; s++) {
+        zebras.push({ x: ix + s * 1.0, z: iz - off, rot: 0 }, { x: ix + s * 1.0, z: iz + off, rot: 0 });
+        zebras.push({ x: ix - off, z: iz + s * 1.0, rot: Math.PI / 2 }, { x: ix + off, z: iz + s * 1.0, rot: Math.PI / 2 });
+      }
+    }
+  }
+  const zebraMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.55, 3), dashMat, Math.max(1, zebras.length));
+  zebras.forEach((zb, i) => {
+    q.setFromEuler(e.set(-Math.PI / 2, 0, zb.rot));
+    m.compose(v.set(zb.x, 0.035, zb.z), q, one);
+    zebraMesh.setMatrixAt(i, m);
+  });
+  zebraMesh.count = zebras.length;
+  scene.add(zebraMesh);
 
   const nearRoad = (x, z, margin) => roads.some((r) => distToSegment(x, z, r) < ROAD_WIDTH / 2 + margin);
   const nearPandal = (x, z, regularGap, ghettoGap) =>
